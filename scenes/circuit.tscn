@@ -1,0 +1,31 @@
+[gd_scene load_steps=3 format=3]
+[ext_resource type="Script" path="res://scripts/circuit.gd" id="1"]
+[ext_resource type="Curve3D" path="res://resources/city_circuit.tres" id="2"]
+[node name="Circuit" type="Node3D"]
+script = ExtResource("1")
+[node name="Route" type="Path3D" parent="."]
+curve = ExtResource("2")
+[node name="RoadOccluder" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+[node name="Rails" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+[node name="RailHalo" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+[node name="Grid" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+[node name="Chevrons" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+[node name="Supports" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+[node name="StartGate" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+[node name="GateLabel" type="Label3D" parent="."]
+text = "N E O N   V E C T O R"
+font_size = 48
+pixel_size = 0.016
+modulate = Color(0.4, 0.8, 1, 1)
+outline_size = 0
+no_depth_test = false
+[node name="City" type="Node3D" parent="."]
+[node name="Landmarks" type="MeshInstance3D" parent="."]
+cast_shadow = 0

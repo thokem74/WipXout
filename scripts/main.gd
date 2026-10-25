@@ -38,7 +38,6 @@ func _ready() -> void:
 	ui.load_settings(data)
 	apply_settings()
 	ui.show_screen("MainMenu")
-	$GameUI/SafeArea/Overlay/MainMenu/Quit.visible = not OS.has_feature("android")
 	if "--demo" in OS.get_cmdline_user_args():
 		demo_mode = true
 		start_race()

@@ -48,6 +48,7 @@ func _ready() -> void:
 
 
 func start_race() -> void:
+	audio.stop_all()
 	elapsed = 0.0
 	finish_order.clear()
 	for i in range(racers.size()):
@@ -73,13 +74,13 @@ func _physics_process(delta: float) -> void:
 		countdown -= delta
 		var count := ceili(countdown)
 		if count != last_count and count > 0 and count <= 3:
-			audio.cue("Countdown")
+			audio.countdown_tick(count)
 			last_count = count
 		ui.set_countdown(str(mini(3, count)) if count > 0 else "GO")
 		if countdown <= 0:
 			state = State.RACING
 			driving.enabled = true
-			audio.cue("Finish")
+			audio.cue("Go")
 	elif state == State.RACING or state == State.RESULTS:
 		elapsed += delta
 		for racer in racers:
@@ -106,7 +107,7 @@ func _physics_process(delta: float) -> void:
 	if hud_timer > 0.08:
 		hud_timer = 0.0
 		ui.update_hud(racers[0], player_position(), elapsed)
-	audio.update_engine(racers[0], state == State.RACING)
+	audio.update_racers(racers, state == State.COUNTDOWN or state == State.RACING, delta)
 
 
 func player_position() -> int:
@@ -135,6 +136,7 @@ func pause_race() -> void:
 		return
 	resume_state = state
 	state = State.PAUSED
+	audio.stop_all()
 	driving.enabled = false
 	driving.clear()
 	for racer in racers:

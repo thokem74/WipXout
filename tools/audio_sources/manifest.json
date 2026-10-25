@@ -1,0 +1,30 @@
+[
+  {
+    "file": "kenney/engineCircular_000.ogg",
+    "sha256": "8ab85f9fa85e9e692287f98acb36b9ac3ba15313b007c039055e286b736f4e3a"
+  },
+  {
+    "file": "kenney/explosionCrunch_000.ogg",
+    "sha256": "4b597d658d0ae101f0a030fbeea5fc3a4292ab85f017470a8254a8e7959cbd69"
+  },
+  {
+    "file": "kenney/impactMetal_000.ogg",
+    "sha256": "956c6612a256aa1a67a2327fffe2454f6b1d82e4c1c2be28fd66916335d5b1d6"
+  },
+  {
+    "file": "kenney/spaceEngineLow_000.ogg",
+    "sha256": "d7deee8d7217ce63aab802ad7365a59cacfd243392dc1bd03b0a9d454aa494df"
+  },
+  {
+    "file": "kenney/spaceEngineSmall_000.ogg",
+    "sha256": "2bec8ff75d81f0c37a6b78bd63beea6c70375e49ee30b0bbe7f38d654d576831"
+  },
+  {
+    "file": "kenney/thrusterFire_000.ogg",
+    "sha256": "0fdc474d93f209debf1fc4ea77765a669dcb7676db31b4d8a0a509685bccf374"
+  },
+  {
+    "file": "racing/loop_0.wav",
+    "sha256": "69d74b106509037ce547429e4c3f9ae906b0fffe88d0bb8b3b5a8b0cfc239048"
+  }
+]

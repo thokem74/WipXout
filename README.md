@@ -74,8 +74,18 @@ save key is retained.
 - `resources/default_tuning.tres` exposes handling, boost, camera, and AI values.
   Mesh strips and emissive shaders provide open wireframe geometry independently
   of desktop wireframe rasterization. Dark road geometry occludes scenery below.
-- Original audio is in `assets/audio`; regenerate it with
-  `python3 tools/generate_audio.py`. No downloaded assets or plugins are needed.
+- Processed audio is in `assets/audio`. With Python 3 and FFmpeg installed, run
+  `python3 tools/generate_audio.py --preview` to rebuild it and create a stereo
+  comparison reel at `builds/pod-race-audio-preview.wav`. Retained CC0 recordings,
+  source hashes, and licenses are under `tools/audio_sources`; see [CREDITS.md](CREDITS.md).
+  Regeneration is offline. VECTOR has a gritty racing roar, ION a rhythmic chug,
+  and EMBER a turbine whine. Idle/loaded recordings crossfade with throttle;
+  speed and load affect RPM, boost adds a roar, and passing rivals change pitch
+  in 3D. Countdown, GO, wall impacts, and finish use mechanical racing cues.
+  Engines idle during countdown; pause, restart, menus, and exit stop playback.
+  The player's engine is non-positional and stays prominent on phone speakers;
+  nearby rivals retain 3D positioning. Countdown/GO briefly duck the engines,
+  and the Master bus limits peaks while preserving the volume setting.
 
 ## Visual quality
 
@@ -111,6 +121,7 @@ debug keystore for testing; production signing is outside this prototype.
 godot --headless --path . --editor --import --quit
 godot --headless --path . --script tests/test_runner.gd
 godot --headless --path . --script tests/desktop_input_runner.gd
+godot --headless --audio-driver PulseAudio --path . --script tests/audio_output_runner.gd
 godot --path . --script tests/visual_runner.gd
 ```
 
@@ -129,11 +140,23 @@ clearance, and camera clearance over full normal-speed and boost-speed laps.
 A clean simulated race takes **5:04.911**; the AI racers finish in **5:38.715** and
 **5:34.619**. These are gameplay timings, not device performance measurements.
 
-Verified on 2026-10-25 with Godot 4.7.2: clean headless import, **564 automated
+Verified on 2026-10-25 with Godot 4.7.2: clean headless import, **591 automated
 checks with zero failures**, seven keyboard-input checks, and rendered HUD checks
 at both aspect ratios. The 0.1.1 debug APK was built, installed,
 and launched on a Samsung SM-A176B (Mali-G68, Vulkan Mobile). Tests cover fixed HDR/MSAA/bloom
 configuration and compatibility with older saves containing a Low preference.
+Audio checks cover full loop boundaries, distinct profiles, throttle load,
+crossfades, countdown idle, cue separation, boost fades, bounded pass-by pitch,
+volume control, and pause/restart/finish cleanup. The generator also checks
+source fingerprints, loop seams, output uniqueness, and clipping headroom.
+The audio-output runner needs a real audio backend (the command above uses Linux
+PulseAudio). It captures actual mixer samples for player idle/load and nearby
+rivals, and checks combined racer/boost/cue peak headroom. Playback flags alone
+are insufficient to verify audible output.
+Short Android racing samples with the louder recorded-engine mix measured
+43.9–44.9 FPS and a worst observed frame of 35.7 ms. Debug bus peaks reached
+-8.6 dB during acceleration, confirming non-silent mixer output; these short
+samples do not establish sustained thermal performance or speaker loudness.
 Android menu/race screenshots and touch navigation were checked with High/Bloom.
 Simultaneous two-finger input is covered by synthetic touch tests; physical comfort
 and the complete device interaction checklist below still need hands-on testing.
@@ -141,7 +164,7 @@ and the complete device interaction checklist below still need hands-on testing.
 On a phone, verify upper/lower pad input, both steering directions, combined
 cornering/throttle, a separate Boost finger, off-pad dragging, pause/resume, and
 app background/foreground. Check cutout margins and rendering performance. Debug
-builds print `NVR_METRICS` frame-timing samples during races; short samples do not
+builds print `NVR_METRICS` frame-timing and mixed-audio peak samples during races; short samples do not
 establish sustained thermal performance.
 
 ## Limitations

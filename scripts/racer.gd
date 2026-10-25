@@ -12,6 +12,7 @@ var track_distance: float = 0.0
 var lateral_offset: float = 0.0
 var lateral_velocity: float = 0.0
 var speed: float = 0.0
+var engine_load: float = 0.0
 var boost_charge: float = 1.0
 var boost_active: bool = false
 var recharge_delay: float = 0.0
@@ -34,6 +35,7 @@ func reset(start_distance: float = 0.0, lane: float = 0.0) -> void:
 	lateral_offset = lane
 	lateral_velocity = 0.0
 	speed = 0.0
+	engine_load = 0.0
 	boost_charge = 1.0
 	boost_active = false
 	boost_locked = false
@@ -60,6 +62,7 @@ func simulate(delta: float, controls: Vector3, race_time: float) -> void:
 	wall_hit = false
 	wall_cooldown = maxf(0.0, wall_cooldown - delta)
 	if progress.finish_time >= 0.0:
+		engine_load = 0.0
 		boost_active = false
 		speed = move_toward(speed, 0.0, 25.0 * delta)
 		update_pose(delta)
@@ -68,6 +71,8 @@ func simulate(delta: float, controls: Vector3, race_time: float) -> void:
 	if boost_locked and boost_charge >= 0.25:
 		boost_locked = false
 	boost_active = controls.z > 0.5 and boost_charge > 0.0 and not boost_locked and throttle >= 0.0
+	# Audio load follows the pilot's demand independently of the current speed.
+	engine_load = 1.0 if boost_active else maxf(throttle, 0.0)
 	if boost_active:
 		boost_charge = maxf(0.0, boost_charge - tuning.boost_drain * delta)
 		recharge_delay = tuning.boost_cooldown
@@ -108,6 +113,8 @@ func simulate(delta: float, controls: Vector3, race_time: float) -> void:
 		track_distance = next_distance
 	else:
 		recover()
+	if progress.finish_time >= 0.0:
+		engine_load = 0.0
 	update_pose(delta)
 
 
@@ -117,6 +124,7 @@ func recover() -> void:
 	lateral_velocity = 0.0
 	speed *= 0.45
 	boost_active = false
+	engine_load = 0.0
 
 
 func update_pose(delta: float) -> void:

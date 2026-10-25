@@ -67,8 +67,7 @@ func run() -> void:
 	check(game.state == game.State.PAUSED, "Escape pauses")
 	game._unhandled_key_input(escape)
 	check(game.state == game.State.RACING, "Escape resumes")
-	for player: AudioStreamPlayer in game.get_node("RaceAudio").get_children():
-		player.stop()
+	game.audio.stop_all()
 	await create_timer(0.2).timeout
 	game.queue_free()
 	await process_frame

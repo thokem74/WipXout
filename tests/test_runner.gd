@@ -25,6 +25,7 @@ func run() -> void:
 	game.set_physics_process(false)
 	# Dummy audio backends do not consume looping playbacks; test driving independently.
 	game.audio.enabled = false
+	test_audio(game)
 	check(root.use_hdr_2d and root.msaa_3d == Viewport.MSAA_4X, "Fixed HDR and 4x MSAA are enabled")
 	check(game.get_node("WorldEnvironment").environment.glow_enabled, "Bloom is always enabled")
 	print("Circuit length: %.1f m" % game.circuit.length)
@@ -122,6 +123,90 @@ func run() -> void:
 	game.free()
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures])
 	call_deferred("quit", 1 if failures else 0)
+
+
+func test_audio(game: Node) -> void:
+	var audio: Node = game.audio
+	audio.enabled = true
+	var engine: AudioStreamPlayer = audio.get_node("EngineIdle")
+	var loaded: AudioStreamPlayer = audio.get_node("EngineLoad")
+	var rival: AudioStreamPlayer3D = audio.get_node("RivalOneIdle")
+	var turbine: AudioStreamPlayer3D = audio.get_node("RivalTwoIdle")
+	var boost: AudioStreamPlayer = audio.get_node("Boost")
+	for name: String in ["EngineIdle", "EngineLoad", "RivalOneIdle", "RivalOneLoad",
+			"RivalTwoIdle", "RivalTwoLoad", "Boost"]:
+		var stream := audio.get_node(name).stream as AudioStreamWAV
+		check(stream.loop_mode == AudioStreamWAV.LOOP_FORWARD
+			and stream.loop_end == stream.mix_rate * 2, "Full seamless loop: " + name)
+	check(engine.stream.data != rival.stream.data and rival.stream.data != turbine.stream.data,
+		"Racers have distinct recorded engine profiles")
+	audio.countdown_tick(3)
+	var first_pitch: float = audio.get_node("Countdown").pitch_scale
+	audio.countdown_tick(1)
+	check(audio.get_node("Countdown").pitch_scale > first_pitch, "Countdown urgency rises toward GO")
+	check(audio.get_node("Go").stream != audio.get_node("Finish").stream,
+		"Launch and finish have distinct racing signals")
+	var player: Racer = game.racers[0]
+	player.reset()
+	player.simulate(1.0 / 60.0, Vector3(0, 0.5, 0), 0.0)
+	check(is_equal_approx(player.engine_load, 0.5), "Engine load follows proportional throttle")
+	player.simulate(1.0 / 60.0, Vector3(0, 0, 1), 0.0)
+	check(player.engine_load == 1.0, "Boost demands full engine load")
+	player.simulate(1.0 / 60.0, Vector3(0, -1, 0), 0.0)
+	check(player.engine_load == 0.0, "Braking releases engine load")
+	player.reset()
+	check(player.engine_load == 0.0, "Restart clears engine load")
+	game.start_race()
+	game._physics_process(0.016)
+	check(engine.playing and rival.playing, "Countdown includes gentle idle engines")
+	var idle_pitch := engine.pitch_scale
+	player.speed = player.tuning.top_speed
+	player.engine_load = 1.0
+	player.boost_active = true
+	for i in range(30):
+		audio.update_racers(game.racers, true, 1.0 / 60.0)
+	check(engine.pitch_scale > idle_pitch, "Mechanical engine RPM rises with speed and load")
+	check(loaded.volume_db > engine.volume_db, "Acceleration crossfades into the loaded recording")
+	check(boost.playing and boost.volume_db > -30.0, "Boost roar fades in")
+	check(rival.global_position.is_equal_approx(game.racers[1].global_position),
+		"Rival audio follows its ship in 3D")
+	player.engine_load = 0.0
+	player.boost_active = false
+	for i in range(60):
+		audio.update_racers(game.racers, true, 1.0 / 60.0)
+	check(engine.volume_db > loaded.volume_db, "Coasting crossfades back to idle texture")
+	check(not boost.playing, "Boost roar fades out after release")
+	# Stage a straight pass so distance and radial speed have unambiguous signs.
+	var other: Racer = game.racers[1]
+	player.transform = Transform3D.IDENTITY
+	player.speed = 0.0
+	other.transform = Transform3D(Basis.IDENTITY, Vector3(0, 0, 20))
+	other.speed = other.tuning.top_speed
+	var approaching: float = audio.passby_pitch(other, player)
+	other.position.z = -20.0
+	var receding: float = audio.passby_pitch(other, player)
+	check(approaching > 1.0 and receding < 1.0, "Passing rivals change from higher to lower pitch")
+	other.position.z = 100000.0
+	check(audio.passby_pitch(other, player) <= 1.25 and receding >= 0.8,
+		"Pass-by pitch remains bounded after teleports")
+	game.state = game.State.RACING
+	game.pause_race()
+	check(not engine.playing and not loaded.playing and not rival.playing
+		and not audio.get_node("Countdown").playing, "Pause stops all layers and cues")
+	game.start_race()
+	check(not engine.playing and not boost.playing, "Restart clears previous audio playback")
+	var original_volume: float = game.data.volume
+	game.data.volume = 0.0
+	game.apply_settings()
+	check(AudioServer.get_bus_volume_db(0) < -70.0, "Volume setting can silence the new mix")
+	game.data.volume = original_volume
+	game.apply_settings()
+	player.progress.finish_time = 1.0
+	player.engine_load = 1.0
+	player.simulate(1.0 / 60.0, Vector3(0, 1, 0), 1.0)
+	check(player.engine_load == 0.0, "Finished racers release engine load")
+	game._on_action("main")
+	audio.enabled = false
 
 
 func test_track_layout(circuit: Circuit) -> void:

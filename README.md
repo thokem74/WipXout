@@ -57,6 +57,10 @@ sensitivity**. Sensitivity adjusts the pad's horizontal response. Settings and l
 best race/lap times persist in `user://neon_vector.cfg`; the existing sensitivity
 save key is retained.
 
+Visual quality uses direct **Low / Line Halos** and **High / Bloom** buttons.
+The selected mode stays highlighted; changes apply immediately and persist.
+This avoids a dropdown popup that could trap touch input on Android.
+
 ## Architecture
 
 - `scenes/main.tscn` composes the circuit, racers, chase camera, HUD, audio, and
@@ -129,10 +133,12 @@ clearance, and camera clearance over full normal-speed and boost-speed laps.
 A clean simulated race takes **5:04.911**; the AI racers finish in **5:38.715** and
 **5:34.619**. These are gameplay timings, not device performance measurements.
 
-Verified on 2026-10-25 with Godot 4.7.2: clean headless import, **561 automated
+Verified on 2026-10-25 with Godot 4.7.2: clean headless import, **575 automated
 checks with zero failures**, seven keyboard-input checks, and rendered HUD checks
 at both aspect ratios and quality levels. The 0.1.1 debug APK was built, installed,
-and launched on a Samsung SM-A176B (Mali-G68, Vulkan Mobile). Android menu/race
+and launched on a Samsung SM-A176B (Mali-G68, Vulkan Mobile). Automated quality
+tests cover repeated touch selection, exclusive highlighting, renderer changes,
+persistence, and returning from Settings. Android menu/race
 screenshots and driving-pad drag gestures through the revised bends were checked
 without script errors. Short Low-quality samples measured 59.7–60.0 FPS, with a
 worst observed frame of 32.1 ms; these samples are not a sustained thermal benchmark.

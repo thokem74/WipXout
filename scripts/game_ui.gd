@@ -15,7 +15,11 @@ func _ready() -> void:
 		button.pressed.connect(func() -> void: action_requested.emit(str(button.get_meta("action"))))
 	$SafeArea/HUD/Pause.pressed.connect(func() -> void: action_requested.emit("pause"))
 	$SafeArea/Overlay/SettingsMenu/Volume.value_changed.connect(func(value: float) -> void: setting_changed.emit("volume", value))
-	$SafeArea/Overlay/SettingsMenu/Quality.item_selected.connect(func(index: int) -> void: setting_changed.emit("high_quality", index == 1))
+	# Direct buttons avoid a modal dropdown trapping touch input on Android.
+	$SafeArea/Overlay/SettingsMenu/Quality/Low.pressed.connect(
+		func() -> void: setting_changed.emit("high_quality", false))
+	$SafeArea/Overlay/SettingsMenu/Quality/High.pressed.connect(
+		func() -> void: setting_changed.emit("high_quality", true))
 	$SafeArea/Overlay/SettingsMenu/Shake.toggled.connect(func(value: bool) -> void: setting_changed.emit("camera_shake", value))
 	$SafeArea/Overlay/SettingsMenu/Sensitivity.value_changed.connect(func(value: float) -> void: setting_changed.emit("sensitivity", value))
 	get_viewport().size_changed.connect(update_safe_area)
@@ -49,7 +53,8 @@ func show_screen(screen: String) -> void:
 func load_settings(data: SaveData) -> void:
 	var settings := $SafeArea/Overlay/SettingsMenu
 	settings.get_node("Volume").set_value_no_signal(data.volume)
-	settings.get_node("Quality").select(1 if data.high_quality else 0)
+	settings.get_node("Quality/Low").set_pressed_no_signal(not data.high_quality)
+	settings.get_node("Quality/High").set_pressed_no_signal(data.high_quality)
 	settings.get_node("Shake").set_pressed_no_signal(data.camera_shake)
 	settings.get_node("Sensitivity").set_value_no_signal(data.sensitivity)
 

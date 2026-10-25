@@ -9,7 +9,6 @@ const SAMPLE_STEP: float = 8.0
 
 @onready var route: Path3D = $Route
 var length: float = 0.0
-var high_quality: bool = true
 
 
 func _ready() -> void:
@@ -88,8 +87,6 @@ func build_track() -> void:
 				NeonLines.add_line(supports, top + here.basis.z * 6, bottom)
 	$Rails.mesh = NeonLines.mesh(rails, 0.14)
 	$Rails.material_override = NeonLines.material(Color(0.0, 0.74, 1.0), 2.0)
-	$RailHalo.mesh = NeonLines.mesh(rails, 0.42)
-	$RailHalo.material_override = NeonLines.halo_material(Color(0.0, 0.6, 1.0))
 	$Grid.mesh = NeonLines.mesh(grid, 0.045)
 	$Grid.material_override = NeonLines.material(Color(0.12, 0.065, 0.38), 0.25)
 	$Chevrons.mesh = NeonLines.mesh(chevrons, 0.20)
@@ -172,7 +169,6 @@ func build_city() -> void:
 		detail.mesh = NeonLines.mesh(extra, 0.15)
 		detail.material_override = chunk.material_override
 		detail.visibility_range_end = 650.0
-		detail.add_to_group("city_detail")
 		$City.add_child(detail)
 
 
@@ -204,10 +200,3 @@ func build_landmarks() -> void:
 		NeonLines.add_line(lines, center + Vector3.UP * 57, center + Vector3.UP * 75)
 	$Landmarks.mesh = NeonLines.mesh(lines, 0.19)
 	$Landmarks.material_override = NeonLines.material(Color(0.04, 0.45, 0.7), 0.7)
-
-
-func set_quality(high: bool) -> void:
-	high_quality = high
-	$RailHalo.visible = not high
-	for detail in get_tree().get_nodes_in_group("city_detail"):
-		detail.visible = high

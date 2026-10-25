@@ -1,7 +1,6 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=11 format=3]
 [ext_resource type="Script" path="res://scripts/game_ui.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/driving_pad.gd" id="2"]
-[sub_resource type="ButtonGroup" id="QualityGroup"]
 [sub_resource type="SystemFont" id="Font"]
 font_names = PackedStringArray("monospace")
 [sub_resource type="StyleBoxFlat" id="Button"]
@@ -403,27 +402,6 @@ custom_minimum_size = Vector2(0, 38)
 max_value = 1.0
 step = 0.01
 value = 0.65
-[node name="QualityLabel" type="Label" parent="SafeArea/Overlay/SettingsMenu"]
-theme_override_font_sizes/font_size = 18
-text = "VISUAL QUALITY"
-
-mouse_filter = 2
-[node name="Quality" type="HBoxContainer" parent="SafeArea/Overlay/SettingsMenu"]
-custom_minimum_size = Vector2(0, 48)
-theme_override_constants/separation = 12
-[node name="Low" type="Button" parent="SafeArea/Overlay/SettingsMenu/Quality"]
-size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 18
-toggle_mode = true
-button_group = SubResource("QualityGroup")
-text = "LOW / LINE HALOS"
-[node name="High" type="Button" parent="SafeArea/Overlay/SettingsMenu/Quality"]
-size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 18
-toggle_mode = true
-button_pressed = true
-button_group = SubResource("QualityGroup")
-text = "HIGH / BLOOM"
 [node name="Shake" type="CheckButton" parent="SafeArea/Overlay/SettingsMenu"]
 text = "CAMERA SHAKE"
 button_pressed = true

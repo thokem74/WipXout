@@ -25,7 +25,8 @@ func run() -> void:
 	game.set_physics_process(false)
 	# Dummy audio backends do not consume looping playbacks; test driving independently.
 	game.audio.enabled = false
-	await test_quality_controls(game)
+	check(root.use_hdr_2d and root.msaa_3d == Viewport.MSAA_4X, "Fixed HDR and 4x MSAA are enabled")
+	check(game.get_node("WorldEnvironment").environment.glow_enabled, "Bloom is always enabled")
 	print("Circuit length: %.1f m" % game.circuit.length)
 	var start: Transform3D = game.circuit.frame(0)
 	var end: Transform3D = game.circuit.frame(game.circuit.length - 0.01)
@@ -121,40 +122,6 @@ func run() -> void:
 	game.free()
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures])
 	call_deferred("quit", 1 if failures else 0)
-
-
-func test_quality_controls(game: Node) -> void:
-	var original_path: String = game.data.save_path
-	var original_quality: bool = game.data.high_quality
-	game.data.save_path = "user://test_quality_controls.cfg"
-	game._on_action("settings")
-	await process_frame
-	var low: Button = game.ui.get_node("SafeArea/Overlay/SettingsMenu/Quality/Low")
-	var high: Button = game.ui.get_node("SafeArea/Overlay/SettingsMenu/Quality/High")
-	for use_high: bool in [false, true, false, true]:
-		var button := high if use_high else low
-		for pressed: bool in [true, false]:
-			var event := InputEventScreenTouch.new()
-			event.index = 0
-			event.position = button.get_global_rect().get_center()
-			event.pressed = pressed
-			root.push_input(event, true)
-		await process_frame
-		check(game.data.high_quality == use_high, "Touch selects requested visual quality")
-		check(high.button_pressed == use_high and low.button_pressed != use_high,
-			"Exactly one quality button stays selected")
-		check(game.get_viewport().use_hdr_2d == use_high,
-			"Quality touch applies renderer settings")
-	var saved := SaveData.new()
-	saved.save_path = game.data.save_path
-	saved.load_settings()
-	check(saved.high_quality, "Touch-selected quality persists")
-	game._on_action("back")
-	check(game.state == game.State.MENU, "Settings Back still works after repeated quality changes")
-	game.data.save_path = original_path
-	game.data.high_quality = original_quality
-	game.ui.load_settings(game.data)
-	game.apply_settings()
 
 
 func test_track_layout(circuit: Circuit) -> void:
@@ -359,15 +326,24 @@ func test_persistence() -> void:
 	var data := SaveData.new()
 	data.save_path = "user://test_settings.cfg"
 	data.volume = 0.31
-	data.high_quality = false
 	data.sensitivity = 1.35
 	data.camera_shake = false
 	data.best_race = 333.125
 	data.best_lap = 109.5
 	check(data.save_settings() == OK, "Settings saved")
+	# Existing installs may still contain the removed Low-quality preference.
+	var legacy_config := ConfigFile.new()
+	legacy_config.load(data.save_path)
+	legacy_config.set_value("settings", "high_quality", false)
+	legacy_config.save(data.save_path)
 	var loaded := SaveData.new()
 	loaded.save_path = data.save_path
 	loaded.load_settings()
 	check(is_equal_approx(loaded.volume, 0.31) and is_equal_approx(loaded.sensitivity, 1.35), "Volume and sensitivity persist")
-	check(not loaded.high_quality and not loaded.camera_shake, "Quality and shake persist")
+	check(not loaded.camera_shake, "Camera shake persists")
 	check(loaded.best_race == 333.125 and loaded.best_lap == 109.5, "Records persist")
+	loaded.save_settings()
+	legacy_config.clear()
+	legacy_config.load(data.save_path)
+	check(not legacy_config.has_section_key("settings", "high_quality"),
+		"Saving settings removes the obsolete quality preference")

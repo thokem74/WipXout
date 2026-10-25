@@ -9,8 +9,6 @@ curve = ExtResource("2")
 cast_shadow = 0
 [node name="Rails" type="MeshInstance3D" parent="."]
 cast_shadow = 0
-[node name="RailHalo" type="MeshInstance3D" parent="."]
-cast_shadow = 0
 [node name="Grid" type="MeshInstance3D" parent="."]
 cast_shadow = 0
 [node name="Chevrons" type="MeshInstance3D" parent="."]

@@ -181,11 +181,6 @@ func apply_settings() -> void:
 	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(data.volume, 0.0001)))
 	camera.shake_enabled = data.camera_shake
 	driving.sensitivity = data.sensitivity
-	circuit.set_quality(data.high_quality)
-	$WorldEnvironment.environment.glow_enabled = data.high_quality
-	get_viewport().use_hdr_2d = data.high_quality
-	get_viewport().scaling_3d_scale = 1.0 if data.high_quality else 0.85
-	get_viewport().msaa_3d = Viewport.MSAA_4X if data.high_quality else Viewport.MSAA_2X
 
 
 func _unhandled_key_input(event: InputEvent) -> void:

@@ -52,14 +52,10 @@ Pause, focus loss, restart, menu transitions, canceled touches, and layout chang
 clear captured input. Resuming requires a fresh touch; held keyboard keys must be
 released before they can drive again. Motion sensors are disabled.
 
-Settings include sound volume, visual quality, camera shake, and **Steering
+Settings include sound volume, camera shake, and **Steering
 sensitivity**. Sensitivity adjusts the pad's horizontal response. Settings and local
 best race/lap times persist in `user://neon_vector.cfg`; the existing sensitivity
 save key is retained.
-
-Visual quality uses direct **Low / Line Halos** and **High / Bloom** buttons.
-The selected mode stays highlighted; changes apply immediately and persist.
-This avoids a dropdown popup that could trap touch input on Android.
 
 ## Architecture
 
@@ -83,10 +79,10 @@ This avoids a dropdown popup that could trap touch input on Android.
 
 ## Visual quality
 
-**Low** is the Android default: 85% 3D resolution, 2× MSAA, fewer building details,
-and narrow additive line halos instead of bloom. **High** uses native resolution,
-4× MSAA, building detail, HDR rendering, and restrained bloom. Desktop defaults to
-High. Both preserve open ships, cyan rails, and a dark road with a sparse grid.
+**High / Bloom** is the fixed rendering mode on desktop and Android: native 3D
+resolution, 4× MSAA, building detail, HDR rendering, and restrained bloom. Rendering
+defaults live in `project.godot` and the scene environment. There is no quality
+selector or saved quality preference; older Low preferences are ignored.
 Android devices need a suitable Vulkan driver; the intended renderer is Mobile.
 
 ## Android debug export
@@ -121,33 +117,30 @@ godot --path . --script tests/visual_runner.gd
 For isolated test saves on Linux, prefix headless test commands with
 `XDG_DATA_HOME=/tmp/neon-vector-tests`. The visual runner needs a display/GPU and
 writes screenshots to `/tmp/neon-*.png`, including climbs, descents, crests, dips,
-and S-bends in both quality settings.
+and S-bends in the fixed High/Bloom mode.
 
 Tests cover complete three-lap races and both AI finishes, checkpoint rejection,
 wall recovery, boost, persistence, keyboard input, pad edges and all diagonals,
 proportional input, independent touch release, cancellation, extra fingers,
 mouse interaction, focus loss, and pause/restart resets. Layout checks and rendered
-inspection cover 1280×720 and 1600×720 in both quality settings. Track checks cover
+inspection cover 1280×720 and 1600×720. Track checks cover
 frame continuity, straight length, elevation, grade, alternating bends, section
 clearance, and camera clearance over full normal-speed and boost-speed laps.
 A clean simulated race takes **5:04.911**; the AI racers finish in **5:38.715** and
 **5:34.619**. These are gameplay timings, not device performance measurements.
 
-Verified on 2026-10-25 with Godot 4.7.2: clean headless import, **575 automated
+Verified on 2026-10-25 with Godot 4.7.2: clean headless import, **564 automated
 checks with zero failures**, seven keyboard-input checks, and rendered HUD checks
-at both aspect ratios and quality levels. The 0.1.1 debug APK was built, installed,
-and launched on a Samsung SM-A176B (Mali-G68, Vulkan Mobile). Automated quality
-tests cover repeated touch selection, exclusive highlighting, renderer changes,
-persistence, and returning from Settings. Android menu/race
-screenshots and driving-pad drag gestures through the revised bends were checked
-without script errors. Short Low-quality samples measured 59.7–60.0 FPS, with a
-worst observed frame of 32.1 ms; these samples are not a sustained thermal benchmark.
+at both aspect ratios. The 0.1.1 debug APK was built, installed,
+and launched on a Samsung SM-A176B (Mali-G68, Vulkan Mobile). Tests cover fixed HDR/MSAA/bloom
+configuration and compatibility with older saves containing a Low preference.
+Android menu/race screenshots and touch navigation were checked with High/Bloom.
 Simultaneous two-finger input is covered by synthetic touch tests; physical comfort
 and the complete device interaction checklist below still need hands-on testing.
 
 On a phone, verify upper/lower pad input, both steering directions, combined
 cornering/throttle, a separate Boost finger, off-pad dragging, pause/resume, and
-app background/foreground. Check cutout margins and both quality settings. Debug
+app background/foreground. Check cutout margins and rendering performance. Debug
 builds print `NVR_METRICS` frame-timing samples during races; short samples do not
 establish sustained thermal performance.
 

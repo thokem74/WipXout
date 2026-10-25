@@ -34,6 +34,7 @@ func run() -> void:
 	check(start.basis.z.dot(end.basis.z) > 0.999, "Circuit tangent closes")
 	test_track_layout(game.circuit)
 	test_camera_clearance(game)
+	test_propulsion(game)
 	game.start_race()
 	game.state = game.State.RACING
 	game.ui.show_screen("")
@@ -122,6 +123,34 @@ func run() -> void:
 	game.free()
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures])
 	call_deferred("quit", 1 if failures else 0)
+
+
+func test_propulsion(game: Node) -> void:
+	var visual: Node3D = game.racers[0].get_node("Wireframe")
+	var left: GPUParticles3D = visual.get_node("LeftJet")
+	var right: GPUParticles3D = visual.get_node("RightJet")
+	var rival: GPUParticles3D = game.racers[1].get_node("Wireframe/LeftJet")
+	var process := left.process_material as ParticleProcessMaterial
+	var rival_process := rival.process_material as ParticleProcessMaterial
+	check(not visual.has_node("Trails"), "Solid tail trails are removed")
+	check(process == right.process_material and process != rival_process,
+		"Twin jets share settings within a ship and remain independent between racers")
+	check(left.draw_pass_1 == right.draw_pass_1 and left.draw_pass_1 != rival.draw_pass_1,
+		"Particle glow resources remain independent between racers")
+	check(process.color == game.racers[0].neon_color
+		and rival_process.color == game.racers[1].neon_color, "Jet colors match their ships")
+	var rival_velocity := rival_process.initial_velocity_max
+	visual.set_propulsion(1.0, false)
+	var cruise_velocity := process.initial_velocity_max
+	var cruise_density := left.amount_ratio
+	visual.set_propulsion(1.0, true)
+	check(process.initial_velocity_max > cruise_velocity and left.amount_ratio > cruise_density,
+		"Boost lengthens and strengthens both plasma jets")
+	check(is_equal_approx(rival_process.initial_velocity_max, rival_velocity),
+		"Boosting one ship does not change rival exhaust")
+	visual.reset_propulsion()
+	check(process.initial_velocity_max < cruise_velocity and left.amount_ratio < cruise_density,
+		"Restart restores faint idle exhaust")
 
 
 func test_track_layout(circuit: Circuit) -> void:

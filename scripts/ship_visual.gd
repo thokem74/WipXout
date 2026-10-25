@@ -7,6 +7,11 @@ extends Node3D
 		if is_inside_tree():
 			build()
 
+var _propulsion_speed: float = -1.0
+var _propulsion_boost: bool = false
+
+@onready var _jets: Array[GPUParticles3D] = [$LeftJet, $RightJet]
+
 
 func _ready() -> void:
 	build()
@@ -14,6 +19,32 @@ func _ready() -> void:
 
 func set_color(value: Color) -> void:
 	color = value
+
+
+func set_propulsion(speed_ratio: float, boosting: bool) -> void:
+	var strength := clampf(speed_ratio, 0.0, 1.0)
+	# Avoid sending identical material updates for every frame at cruising speed.
+	if is_equal_approx(strength, _propulsion_speed) and boosting == _propulsion_boost:
+		return
+	_propulsion_speed = strength
+	_propulsion_boost = boosting
+	var velocity := 28.0 if boosting else lerpf(4.5, 16.0, strength)
+	var energy := 6.0 if boosting else lerpf(1.0, 3.5, strength)
+	var density := 1.0 if boosting else lerpf(0.25, 0.8, strength)
+	for jet in _jets:
+		jet.amount_ratio = density
+	# Both engines share resources within this ship, but not with other racers.
+	var process := _jets[0].process_material as ParticleProcessMaterial
+	process.initial_velocity_min = velocity * 0.75
+	process.initial_velocity_max = velocity
+	var glow := _jets[0].draw_pass_1.material as ShaderMaterial
+	glow.set_shader_parameter("glow_energy", energy)
+
+
+func reset_propulsion() -> void:
+	set_propulsion(0.0, false)
+	for jet in _jets:
+		jet.restart()
 
 
 func build() -> void:
@@ -42,9 +73,6 @@ func build() -> void:
 	$Core.material_override = NeonLines.material(color, 2.4)
 	$Halo.mesh = NeonLines.mesh(lines, 0.36)
 	$Halo.material_override = NeonLines.halo_material(color)
-	var trails: Array = []
-	for side: float in [-1.0, 1.0]:
-		for offset: float in [-0.12, 0.12]:
-			NeonLines.add_line(trails, Vector3(side * 1.2 + offset, 0, 2.35), Vector3(side * 1.2 + offset, 0, 7.5))
-	$Trails.mesh = NeonLines.mesh(trails, 0.11)
-	$Trails.material_override = NeonLines.material(color, 3.0)
+	for jet in _jets:
+		var process := jet.process_material as ParticleProcessMaterial
+		process.color = color

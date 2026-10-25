@@ -74,6 +74,11 @@ save key is retained.
 - `resources/default_tuning.tres` exposes handling, boost, camera, and AI values.
   Mesh strips and emissive shaders provide open wireframe geometry independently
   of desktop wireframe rasterization. Dark road geometry occludes scenery below.
+- `scenes/ship_visual.tscn` authors two GPU plasma jets at the engine outlets,
+  with 32 short-lived particles per engine. Exhaust matches each ship's neon
+  color, grows with speed, and flares during boost. A procedural emissive shader
+  provides soft glowing particles without downloaded textures. Local coordinates
+  keep the jets attached through bends; race restart restores idle emission.
 - Original audio is in `assets/audio`; regenerate it with
   `python3 tools/generate_audio.py`. No downloaded assets or plugins are needed.
 
@@ -117,7 +122,7 @@ godot --path . --script tests/visual_runner.gd
 For isolated test saves on Linux, prefix headless test commands with
 `XDG_DATA_HOME=/tmp/neon-vector-tests`. The visual runner needs a display/GPU and
 writes screenshots to `/tmp/neon-*.png`, including climbs, descents, crests, dips,
-and S-bends in the fixed High/Bloom mode.
+S-bends, and idle/cruising/boosted/reset exhaust in the fixed High/Bloom mode.
 
 Tests cover complete three-lap races and both AI finishes, checkpoint rejection,
 wall recovery, boost, persistence, keyboard input, pad edges and all diagonals,
@@ -129,12 +134,17 @@ clearance, and camera clearance over full normal-speed and boost-speed laps.
 A clean simulated race takes **5:04.911**; the AI racers finish in **5:38.715** and
 **5:34.619**. These are gameplay timings, not device performance measurements.
 
-Verified on 2026-10-25 with Godot 4.7.2: clean headless import, **564 automated
+Verified on 2026-10-25 with Godot 4.7.2: clean headless import, **571 automated
 checks with zero failures**, seven keyboard-input checks, and rendered HUD checks
 at both aspect ratios. The 0.1.1 debug APK was built, installed,
 and launched on a Samsung SM-A176B (Mali-G68, Vulkan Mobile). Tests cover fixed HDR/MSAA/bloom
 configuration and compatibility with older saves containing a Low preference.
+Exhaust checks cover per-ship color/material isolation, boost response, and reset.
 Android menu/race screenshots and touch navigation were checked with High/Bloom.
+Short Android racing samples with plasma jets measured 43.3–44.7 FPS, with a worst
+observed frame of 33.9 ms. Earlier High/Bloom samples with line exhaust measured
+38.8–44.9 FPS; scene and device conditions varied, so this is a smoke comparison,
+not a controlled performance or sustained thermal benchmark.
 Simultaneous two-finger input is covered by synthetic touch tests; physical comfort
 and the complete device interaction checklist below still need hands-on testing.
 

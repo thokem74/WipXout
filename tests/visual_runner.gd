@@ -19,7 +19,8 @@ func run() -> void:
 	await process_frame
 	game.set_physics_process(false)
 	game.start_race()
-	game.state = game.State.RACING
+	# These are staged views; focus changes must not replace the HUD with Pause.
+	game.state = game.State.MENU
 	game.ui.show_screen("")
 	game.racers[0].track_distance = 1500.0
 	game.racers[1].track_distance = 1528.0
@@ -84,6 +85,25 @@ func run() -> void:
 		var filename := "/tmp/neon-section-%s-high.png" % section
 		viewport.get_texture().get_image().save_png(filename)
 		print("Saved ", filename, " at ", sections[section])
+	# Allow a full particle lifetime to render each propulsion state.
+	for mode: String in ["idle", "cruise", "boost", "restart"]:
+		for index in range(3):
+			var racer: Racer = game.racers[index]
+			if mode == "restart":
+				racer.reset(1500.0 + index * 12.0, -3.0 + index * 3.0)
+			else:
+				racer.track_distance = 1500.0 + index * 12.0
+				racer.lateral_offset = -3.0 + index * 3.0
+				racer.speed = 0.0 if mode == "idle" else racer.tuning.top_speed
+				racer.boost_active = mode == "boost"
+				racer.update_pose(0.1)
+		game.camera.snap_next = true
+		game.ui.update_hud(game.racers[0], 3, 12.52)
+		await create_timer(0.35).timeout
+		await RenderingServer.frame_post_draw
+		var filename := "/tmp/neon-exhaust-%s.png" % mode
+		viewport.get_texture().get_image().save_png(filename)
+		print("Saved ", filename)
 	for screen: String in ["SettingsMenu", "PauseMenu", "ResultsMenu"]:
 		game.ui.show_screen(screen)
 		if screen == "ResultsMenu":

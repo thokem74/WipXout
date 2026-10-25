@@ -34,7 +34,10 @@ func frame(distance: float) -> Transform3D:
 func curvature(distance: float) -> float:
 	var first := -frame(distance).basis.z
 	var second := -frame(distance + 28.0).basis.z
-	return first.signed_angle_to(second, Vector3.UP) / 28.0
+	# Steering responds to heading changes, not the pitch of a climb or descent.
+	first.y = 0.0
+	second.y = 0.0
+	return first.normalized().signed_angle_to(second.normalized(), Vector3.UP) / 28.0
 
 
 func build_track() -> void:
@@ -137,6 +140,13 @@ func build_city() -> void:
 			var height := random.randf_range(65, 210)
 			var width := random.randf_range(10, 26)
 			var depth := random.randf_range(10, 25)
+			# Inside a tight bend, an offset building can reach another part of the road.
+			# Leave a conservative footprint clearance along the whole route.
+			var clearance := Vector2(width, depth).length() + WIDTH / 2.0 + 4.0
+			if not has_scenery_clearance(center, clearance):
+				# Consume the skipped antenna height to keep later scenery deterministic.
+				random.randf_range(8, 28)
+				continue
 			var corners: Array[Vector3] = []
 			for corner: Vector3 in [Vector3(-width, 0, -depth), Vector3(width, 0, -depth),
 					Vector3(width, 0, depth), Vector3(-width, 0, depth)]:
@@ -164,6 +174,15 @@ func build_city() -> void:
 		detail.visibility_range_end = 650.0
 		detail.add_to_group("city_detail")
 		$City.add_child(detail)
+
+
+func has_scenery_clearance(center: Vector3, clearance: float) -> bool:
+	# Buildings span the track's elevation, so check their horizontal footprint.
+	var footprint := Vector2(center.x, center.z)
+	for point in route.curve.get_baked_points():
+		if footprint.distance_squared_to(Vector2(point.x, point.z)) < clearance * clearance:
+			return false
+	return true
 
 
 func build_landmarks() -> void:

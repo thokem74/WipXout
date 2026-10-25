@@ -46,16 +46,47 @@ func run() -> void:
 			var name := "/tmp/neon-%s-%d.png" % ["high" if quality else "low", resolution.x]
 			image.save_png(name)
 			print("Saved ", name)
-	# Inspect the high viaduct and all menu layouts as well as the main race view.
-	for distance: float in [4400.0, 7000.0]:
-		for index in range(3):
-			game.racers[index].track_distance = distance + index * 24.0
-			game.racers[index].update_pose(0.1)
-		game.camera.snap_next = true
-		for i in range(10):
-			await process_frame
-		await RenderingServer.frame_post_draw
-		viewport.get_texture().get_image().save_png("/tmp/neon-section-%d.png" % distance)
+	# Find representative sections from the authored route rather than old offsets.
+	var sections := {"climb": 0.0, "descent": 0.0, "crest": 0.0, "dip": 0.0, "s-bend": 0.0}
+	var steepest_climb := -INF
+	var steepest_descent := INF
+	var highest_point := -INF
+	var lowest_point := INF
+	var tightest_bend := 0.0
+	for distance in range(0, ceili(game.circuit.length), 8):
+		var pose: Transform3D = game.circuit.frame(distance)
+		var slope := -pose.basis.z.y
+		if slope > steepest_climb:
+			steepest_climb = slope
+			sections["climb"] = float(distance)
+		if slope < steepest_descent:
+			steepest_descent = slope
+			sections["descent"] = float(distance)
+		if pose.origin.y > highest_point:
+			highest_point = pose.origin.y
+			sections["crest"] = float(distance)
+		# Inspect an interior dip rather than the flat starting grid.
+		if distance > 300 and distance < game.circuit.length - 300 and pose.origin.y < lowest_point:
+			lowest_point = pose.origin.y
+			sections["dip"] = float(distance)
+		var bend: float = absf(game.circuit.curvature(distance))
+		if bend > tightest_bend:
+			tightest_bend = bend
+			sections["s-bend"] = float(distance)
+	for quality: bool in [true, false]:
+		game.data.high_quality = quality
+		game.apply_settings()
+		for section: String in sections:
+			for index in range(3):
+				game.racers[index].track_distance = sections[section] + index * 24.0
+				game.racers[index].update_pose(0.1)
+			game.camera.snap_next = true
+			for i in range(10):
+				await process_frame
+			await RenderingServer.frame_post_draw
+			var filename := "/tmp/neon-section-%s-%s.png" % [section, "high" if quality else "low"]
+			viewport.get_texture().get_image().save_png(filename)
+			print("Saved ", filename, " at ", sections[section])
 	for screen: String in ["SettingsMenu", "PauseMenu", "ResultsMenu"]:
 		game.ui.show_screen(screen)
 		if screen == "ResultsMenu":

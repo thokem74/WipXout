@@ -30,6 +30,8 @@ func run() -> void:
 	var end: Transform3D = game.circuit.frame(game.circuit.length - 0.01)
 	check(start.origin.distance_to(end.origin) < 0.1, "Circuit position closes")
 	check(start.basis.z.dot(end.basis.z) > 0.999, "Circuit tangent closes")
+	test_track_layout(game.circuit)
+	test_camera_clearance(game)
 	game.start_race()
 	game.state = game.State.RACING
 	game.ui.show_screen("")
@@ -118,6 +120,106 @@ func run() -> void:
 	game.free()
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures])
 	call_deferred("quit", 1 if failures else 0)
+
+
+func test_track_layout(circuit: Circuit) -> void:
+	var samples := ceili(circuit.length / 5.0)
+	var step := circuit.length / samples
+	var minimum_height := INF
+	var maximum_height := -INF
+	var maximum_grade := 0.0
+	var frames_valid := true
+	var straight_length := 0.0
+	var longest_straight := 0.0
+	var previous_turn := 0.0
+	var turn_reversals := 0
+	var previous_slope := 0.0
+	var crests := 0
+	var dips := 0
+	var positions: Array[Vector3] = []
+	# A second pass includes straight sections and hills crossing the lap seam.
+	for i in range(samples * 2):
+		var distance := i * step
+		var pose := circuit.frame(distance)
+		frames_valid = frames_valid and pose.origin.is_finite() and pose.basis.is_finite()
+		frames_valid = frames_valid and pose.basis.is_equal_approx(pose.basis.orthonormalized())
+		var forward := -pose.basis.z
+		var grade := forward.y / Vector2(forward.x, forward.z).length()
+		maximum_grade = maxf(maximum_grade, absf(grade))
+		minimum_height = minf(minimum_height, pose.origin.y)
+		maximum_height = maxf(maximum_height, pose.origin.y)
+		if i < samples:
+			positions.append(pose.origin)
+			if absf(grade) > 0.01:
+				if previous_slope > 0.0 and grade < 0.0:
+					crests += 1
+				elif previous_slope < 0.0 and grade > 0.0:
+					dips += 1
+				previous_slope = grade
+		var bend := circuit.curvature(distance)
+		if absf(bend) < 0.0006:
+			straight_length += step
+			longest_straight = maxf(longest_straight, straight_length)
+		else:
+			straight_length = 0.0
+			if i < samples and previous_turn * bend < 0.0:
+				turn_reversals += 1
+			previous_turn = bend
+	check(frames_valid, "Track frames remain finite and orthonormal over hills")
+	check(longest_straight <= 200.0, "Straight sections stay within 200 metres, including the seam")
+	check(turn_reversals >= 6, "Track includes at least three alternating S-bend sequences")
+	check(maximum_height - minimum_height >= 40.0, "Track has pronounced elevation changes")
+	check(crests >= 3 and dips >= 2, "Track has three distinct climbs and descents")
+	check(maximum_grade <= 0.20, "Track grades remain within twenty percent")
+	# Non-neighbouring road samples must leave room for the full track width.
+	var clearance_valid := true
+	var neighbour_samples := ceili(100.0 / step)
+	for i in range(samples):
+		for j in range(i + neighbour_samples, samples):
+			if samples - j + i < neighbour_samples:
+				continue
+			if positions[i].distance_to(positions[j]) < Circuit.WIDTH + 2.0:
+				clearance_valid = false
+	check(clearance_valid, "Separate track sections do not overlap")
+	var road_center := circuit.frame(circuit.length / 2.0).origin
+	road_center.y = -50.0
+	check(not circuit.has_scenery_clearance(road_center, 40.0),
+		"Scenery clearance rejects buildings below elevated road sections")
+	check(circuit.has_scenery_clearance(Vector3(10000, -50, 10000), 40.0),
+		"Scenery clearance allows buildings away from the road")
+	# Changing pitch on an otherwise straight path must not steer the ship.
+	var climb := Circuit.new()
+	var path := Path3D.new()
+	path.curve = Curve3D.new()
+	path.curve.add_point(Vector3.ZERO, Vector3.ZERO, Vector3(0, 0, -50))
+	path.curve.add_point(Vector3(0, 40, -150), Vector3(0, -30, 50), Vector3(0, 30, -50))
+	path.curve.add_point(Vector3(0, 100, -300), Vector3(0, 0, 50))
+	climb.add_child(path)
+	climb.route = path
+	climb.length = path.curve.get_baked_length()
+	check(absf(climb.curvature(70.0)) < 0.000001, "Pitch changes do not create steering curvature")
+	climb.free()
+	print("Track profile: %.1f m, %.1f m elevation, %.1f%% maximum grade, %.1f m longest straight" % [
+		circuit.length, maximum_height - minimum_height, maximum_grade * 100.0, longest_straight])
+
+
+func test_camera_clearance(game: Node) -> void:
+	var player: Racer = game.racers[0]
+	var minimum_clearance := INF
+	for speed: float in [player.tuning.top_speed, player.tuning.boost_speed]:
+		game.camera.snap_next = true
+		var steps := ceili((game.circuit.length + 100.0) / (speed / 60.0))
+		for i in range(steps):
+			player.track_distance = i * speed / 60.0
+			player.speed = speed
+			player.update_pose(1.0 / 60.0)
+			game.camera._process(1.0 / 60.0)
+			var offset: float = game.circuit.route.curve.get_closest_offset(game.camera.global_position)
+			var road: Transform3D = game.circuit.frame(offset)
+			var local_camera: Vector3 = road.affine_inverse() * game.camera.global_position
+			minimum_clearance = minf(minimum_clearance, local_camera.y)
+	check(minimum_clearance > 1.0, "Chase camera clears road throughout normal and boosted laps")
+	print("Minimum camera clearance: %.2f m" % minimum_clearance)
 
 
 func test_progress() -> void:

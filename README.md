@@ -4,6 +4,12 @@ A single-player anti-gravity arcade racer built with Godot 4.7.2 and GDScript.
 Race two AI pilots through a neon wireframe city over three laps. The project uses
 Godot's **Mobile** renderer on desktop and Android.
 
+The 8.89 km circuit has a 180 m opening straight, repeated flowing S-bends, and
+three smooth climbs and descents with 64 m of elevation change. The steepest
+grade is approximately 11.6%; near-straight sections stay below 200 m, including
+across the lap seam. Ships hover along the road through hills, and the chase
+camera follows its slope. Three laps take roughly 5–6 minutes in automated runs.
+
 ## Run
 
 Open `project.godot` in the installed stable Godot 4.7.x editor and press **F6**
@@ -110,23 +116,27 @@ godot --path . --script tests/visual_runner.gd
 
 For isolated test saves on Linux, prefix headless test commands with
 `XDG_DATA_HOME=/tmp/neon-vector-tests`. The visual runner needs a display/GPU and
-writes screenshots to `/tmp/neon-*.png`.
+writes screenshots to `/tmp/neon-*.png`, including climbs, descents, crests, dips,
+and S-bends in both quality settings.
 
 Tests cover complete three-lap races and both AI finishes, checkpoint rejection,
 wall recovery, boost, persistence, keyboard input, pad edges and all diagonals,
 proportional input, independent touch release, cancellation, extra fingers,
 mouse interaction, focus loss, and pause/restart resets. Layout checks and rendered
-inspection cover 1280×720 and 1600×720 in both quality settings. A clean simulated
-race takes about 5:37; this is gameplay timing, not a device performance measurement.
+inspection cover 1280×720 and 1600×720 in both quality settings. Track checks cover
+frame continuity, straight length, elevation, grade, alternating bends, section
+clearance, and camera clearance over full normal-speed and boost-speed laps.
+A clean simulated race takes **5:04.911**; the AI racers finish in **5:38.715** and
+**5:34.619**. These are gameplay timings, not device performance measurements.
 
-Verified on 2026-10-24 with Godot 4.7.2: clean headless import, **550 automated
+Verified on 2026-10-25 with Godot 4.7.2: clean headless import, **561 automated
 checks with zero failures**, seven keyboard-input checks, and rendered HUD checks
 at both aspect ratios and quality levels. The 0.1.1 debug APK was built, installed,
 and launched on a Samsung SM-A176B (Mali-G68, Vulkan Mobile). Android menu/race
-screenshots and a driving-pad drag gesture were checked without script errors.
-Short Low-quality racing samples measured 59.0–60.0 FPS, with a worst observed
-frame of 32.9 ms; these samples are not a sustained thermal benchmark. Simultaneous
-two-finger input is covered by synthetic touch tests; physical two-finger comfort
+screenshots and driving-pad drag gestures through the revised bends were checked
+without script errors. Short Low-quality samples measured 59.7–60.0 FPS, with a
+worst observed frame of 32.1 ms; these samples are not a sustained thermal benchmark.
+Simultaneous two-finger input is covered by synthetic touch tests; physical comfort
 and the complete device interaction checklist below still need hands-on testing.
 
 On a phone, verify upper/lower pad input, both steering directions, combined

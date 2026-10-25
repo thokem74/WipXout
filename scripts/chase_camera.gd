@@ -12,8 +12,11 @@ func _process(delta: float) -> void:
 		return
 	time += delta
 	var path_frame := target.circuit.frame(target.track_distance)
-	var desired := target.global_position + path_frame.basis.z * tuning.camera_distance + Vector3.UP * tuning.camera_height
-	var look_point := target.global_position - path_frame.basis.z * 19.0 + Vector3.UP * 0.8
+	# Road-relative offsets keep the camera above the surface on hills.
+	var desired := (target.global_position + path_frame.basis.z * tuning.camera_distance
+		+ path_frame.basis.y * tuning.camera_height)
+	var look_point := (target.global_position - path_frame.basis.z * 19.0
+		+ path_frame.basis.y * 0.8)
 	if shake_enabled and target.boost_active:
 		desired += path_frame.basis.x * sin(time * 34.0) * 0.045
 	if snap_next:

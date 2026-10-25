@@ -138,8 +138,10 @@ func test_audio(game: Node) -> void:
 		var stream := audio.get_node(name).stream as AudioStreamWAV
 		check(stream.loop_mode == AudioStreamWAV.LOOP_FORWARD
 			and stream.loop_end == stream.mix_rate * 2, "Full seamless loop: " + name)
-	check(engine.stream.data != rival.stream.data and rival.stream.data != turbine.stream.data,
-		"Racers have distinct recorded engine profiles")
+	var rival_loaded: AudioStreamPlayer3D = audio.get_node("RivalOneLoad")
+	check(engine.stream.data == rival.stream.data and loaded.stream.data == rival_loaded.stream.data
+		and rival.stream.data != turbine.stream.data,
+		"Player shares ION's idle/loaded profile while EMBER keeps its turbine sound")
 	audio.countdown_tick(3)
 	var first_pitch: float = audio.get_node("Countdown").pitch_scale
 	audio.countdown_tick(1)

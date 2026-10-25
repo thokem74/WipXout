@@ -27,8 +27,8 @@ them, applies soft saturation, and crossfades loop boundaries. It validates
 headroom, loop seams, and distinct outputs, then writes mono 44.1 kHz, 16-bit WAVs
 to `assets/audio`. Source recordings are never overwritten.
 
-- **VECTOR / player:** two detuned recorded engine banks and rotary vibration.
-- **ION:** a lower mechanical texture with uneven rhythmic engine pulses.
+- **VECTOR / player and ION:** the same lower mechanical texture with uneven
+  rhythmic engine pulses, using matching idle and loaded recordings.
 - **EMBER:** turbine recordings, a rotary layer, and a restrained whine.
 - **Boost:** processed thruster and racing-engine roar.
 - **Countdown / GO / wall / finish:** mechanical klaxon pulses, launch blast,

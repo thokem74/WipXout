@@ -103,18 +103,12 @@ def build_sounds():
     metal = read_source("kenney/impactMetal_000.ogg")
     crunch = read_source("kenney/explosionCrunch_000.ogg")
     sounds = {}
-    for profile in ("player", "chug", "turbine"):
+    for profile in ("chug", "turbine"):
         for loaded in (False, True):
             result = []
             for i in range(LOOP_FRAMES):
                 t = i / RATE
-                if profile == "player":
-                    # Slightly mismatched engine banks create a rough beating roar.
-                    banks = (sample_loop(car, i * (1.25 if loaded else 0.72))
-                             + 0.55 * sample_loop(car, i * (1.29 if loaded else 0.75) + 800))
-                    value = 0.65 * banks + 0.22 * sample_loop(rotary, i * 0.9)
-                    value *= 0.8 + 0.2 * math.sin(TAU * 27 * t) ** 2
-                elif profile == "chug":
+                if profile == "chug":
                     pulse = (0.5 + 0.5 * math.sin(TAU * (19 if loaded else 11) * t)) ** 3
                     uneven = 0.8 + 0.2 * math.sin(TAU * 3 * t + 0.7)
                     value = (0.6 * sample_loop(low, i * 0.75)
@@ -181,7 +175,8 @@ def preview(sounds):
     # Each profile: idle, acceleration, coast, brake, then boost. Last section:
     # a left-to-right approaching/receding rival, countdown, GO, impact and finish.
     reel = []
-    for profile in ("player", "chug", "turbine"):
+    # VECTOR and ION intentionally share the same pulsing engine profile.
+    for profile in ("chug", "chug", "turbine"):
         idle, loaded = sounds[f"engine_{profile}_idle"], sounds[f"engine_{profile}_load"]
         position = 0.0
         load = 0.0

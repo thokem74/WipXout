@@ -86,8 +86,8 @@ save key is retained.
   `python3 tools/generate_audio.py --preview` to rebuild it and create a stereo
   comparison reel at `builds/pod-race-audio-preview.wav`. Retained CC0 recordings,
   source hashes, and licenses are under `tools/audio_sources`; see [CREDITS.md](CREDITS.md).
-  Regeneration is offline. VECTOR has a gritty racing roar, ION a rhythmic chug,
-  and EMBER a turbine whine. Idle/loaded recordings crossfade with throttle;
+  Regeneration is offline. VECTOR and ION share the same deep rhythmic chug;
+  EMBER retains its turbine whine. Idle/loaded recordings crossfade with throttle;
   speed and load affect RPM, boost adds a roar, and passing rivals change pitch
   in 3D. Countdown, GO, wall impacts, and finish use mechanical racing cues.
   Engines idle during countdown; pause, restart, menus, and exit stop playback.
@@ -154,7 +154,7 @@ checks with zero failures**, **23 racer-contact checks**, seven keyboard-input c
 at both aspect ratios. The 0.1.1 debug APK was built, installed,
 and launched on a Samsung SM-A176B (Mali-G68, Vulkan Mobile). Tests cover fixed HDR/MSAA/bloom
 configuration and compatibility with older saves containing a Low preference.
-Audio checks cover full loop boundaries, distinct profiles, throttle load,
+Audio checks cover full loop boundaries, the shared VECTOR/ION profile, throttle load,
 crossfades, countdown idle, cue separation, boost fades, bounded pass-by pitch,
 volume control, and pause/restart/finish cleanup. The generator also checks
 source fingerprints, loop seams, output uniqueness, and clipping headroom.

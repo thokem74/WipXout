@@ -42,7 +42,6 @@ func reset(start_distance: float = 0.0, lane: float = 0.0) -> void:
 	finished_rank = 0
 	visual_time = 0.0
 	progress.reset(start_distance)
-	$Wireframe.reset_propulsion()
 	update_pose(0.0)
 
 
@@ -126,4 +125,3 @@ func update_pose(delta: float) -> void:
 	position += basis.x * lateral_offset + basis.y * (tuning.hover_height + sin(visual_time * 3.0) * 0.10)
 	$Wireframe.rotation.z = lerp_angle($Wireframe.rotation.z, -lateral_velocity * 0.035, 1.0 - exp(-delta * 8.0))
 	$Wireframe.rotation.y = -lateral_velocity * 0.012
-	$Wireframe.set_propulsion(speed / tuning.top_speed, boost_active)

@@ -1,60 +1,8 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=2 format=3]
 [ext_resource type="Script" path="res://scripts/ship_visual.gd" id="1"]
-[ext_resource type="Shader" path="res://resources/plasma_jet.gdshader" id="2"]
-[sub_resource type="Gradient" id="JetFade"]
-offsets = PackedFloat32Array(0, 0.12, 0.65, 1)
-colors = PackedColorArray(1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0.65, 1, 1, 1, 0)
-[sub_resource type="GradientTexture1D" id="JetFadeTexture"]
-gradient = SubResource("JetFade")
-[sub_resource type="ParticleProcessMaterial" id="JetProcess"]
-resource_local_to_scene = true
-emission_shape = 1
-emission_sphere_radius = 0.12
-direction = Vector3(0, 0, 1)
-spread = 4.0
-initial_velocity_min = 3.0
-initial_velocity_max = 4.5
-gravity = Vector3(0, 0, 0)
-scale_min = 0.65
-scale_max = 1.0
-color = Color(1, 0.015, 0.8, 1)
-color_ramp = SubResource("JetFadeTexture")
-attractor_interaction_enabled = false
-[sub_resource type="ShaderMaterial" id="JetGlow"]
-resource_local_to_scene = true
-shader = ExtResource("2")
-shader_parameter/glow_energy = 1.0
-[sub_resource type="QuadMesh" id="JetParticle"]
-resource_local_to_scene = true
-material = SubResource("JetGlow")
-size = Vector2(0.65, 0.65)
 [node name="Wireframe" type="Node3D"]
 script = ExtResource("1")
 [node name="Core" type="MeshInstance3D" parent="."]
 cast_shadow = 0
 [node name="Halo" type="MeshInstance3D" parent="."]
 cast_shadow = 0
-[node name="LeftJet" type="GPUParticles3D" parent="."]
-position = Vector3(-1.2, 0, 2.55)
-cast_shadow = 0
-amount = 32
-amount_ratio = 0.25
-lifetime = 0.22
-fixed_fps = 60
-preprocess = 0.22
-local_coords = true
-visibility_aabb = AABB(-1, -1, -1, 2, 2, 9)
-process_material = SubResource("JetProcess")
-draw_pass_1 = SubResource("JetParticle")
-[node name="RightJet" type="GPUParticles3D" parent="."]
-position = Vector3(1.2, 0, 2.55)
-cast_shadow = 0
-amount = 32
-amount_ratio = 0.25
-lifetime = 0.22
-fixed_fps = 60
-preprocess = 0.22
-local_coords = true
-visibility_aabb = AABB(-1, -1, -1, 2, 2, 9)
-process_material = SubResource("JetProcess")
-draw_pass_1 = SubResource("JetParticle")

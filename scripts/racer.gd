@@ -21,6 +21,12 @@ var wall_cooldown: float = 0.0
 var wall_hit: bool = false
 var visual_time: float = 0.0
 var finished_rank: int = 0
+var previous_track_distance: float = 0.0
+var previous_lateral_offset: float = 0.0
+var contact_hit: bool = false
+var contact_cooldown: float = 0.0
+
+@onready var collision_shape: CollisionShape3D = $CollisionHull/CollisionShape3D
 
 
 func setup(track: Circuit, start_distance: float, lane: float) -> void:
@@ -43,6 +49,10 @@ func reset(start_distance: float = 0.0, lane: float = 0.0) -> void:
 	wall_cooldown = 0.0
 	finished_rank = 0
 	visual_time = 0.0
+	previous_track_distance = start_distance
+	previous_lateral_offset = lane
+	contact_hit = false
+	contact_cooldown = 0.0
 	progress.reset(start_distance)
 	update_pose(0.0)
 
@@ -59,13 +69,22 @@ func ai_input(time: float) -> Vector3:
 
 
 func simulate(delta: float, controls: Vector3, race_time: float) -> void:
+	prepare_step(delta, controls)
+	finish_step(delta, race_time)
+
+
+func prepare_step(delta: float, controls: Vector3) -> void:
+	# Keep the start of the sweep; contacts are resolved before committing progress.
+	previous_track_distance = track_distance
+	previous_lateral_offset = lateral_offset
+	contact_hit = false
+	contact_cooldown = maxf(0.0, contact_cooldown - delta)
 	wall_hit = false
 	wall_cooldown = maxf(0.0, wall_cooldown - delta)
 	if progress.finish_time >= 0.0:
 		engine_load = 0.0
 		boost_active = false
 		speed = move_toward(speed, 0.0, 25.0 * delta)
-		update_pose(delta)
 		return
 	var throttle := clampf(controls.y, -1.0, 1.0)
 	if boost_locked and boost_charge >= 0.25:
@@ -97,7 +116,7 @@ func simulate(delta: float, controls: Vector3, race_time: float) -> void:
 	lateral_velocity += (controls.x * tuning.steering_acceleration + turn * speed * speed * 0.16) * delta
 	lateral_velocity *= exp(-tuning.lateral_damping * delta)
 	lateral_offset += lateral_velocity * delta
-	var limit := Circuit.WIDTH / 2.0 - 2.0
+	var limit := lateral_limit()
 	if absf(lateral_offset) > limit:
 		if absf(lateral_offset) > Circuit.WIDTH * 1.5:
 			recover()
@@ -108,19 +127,37 @@ func simulate(delta: float, controls: Vector3, race_time: float) -> void:
 				speed *= tuning.wall_speed_retention
 				wall_hit = true
 				wall_cooldown = 0.6
-	var next_distance := track_distance + speed * delta
-	if progress.advance(next_distance, delta, race_time):
-		track_distance = next_distance
-	else:
+	track_distance += speed * delta
+
+
+func finish_step(delta: float, race_time: float) -> void:
+	if progress.finish_time >= 0.0:
+		update_pose(delta)
+		return
+	if not progress.advance(track_distance, delta, race_time):
 		recover()
 	if progress.finish_time >= 0.0:
 		engine_load = 0.0
 	update_pose(delta)
 
 
+func register_contact() -> void:
+	if contact_cooldown <= 0.0:
+		contact_hit = true
+		contact_cooldown = 0.4
+
+
+func lateral_limit() -> float:
+	var box := collision_shape.shape as BoxShape3D
+	return maxf(0.0, Circuit.WIDTH * 0.5 - box.size.x * 0.5 - 0.2)
+
+
 func recover() -> void:
 	track_distance = progress.distance
 	lateral_offset = 0.0
+	# Recovery teleports, so it must not sweep through every lane on the way back.
+	previous_track_distance = track_distance
+	previous_lateral_offset = lateral_offset
 	lateral_velocity = 0.0
 	speed *= 0.45
 	boost_active = false

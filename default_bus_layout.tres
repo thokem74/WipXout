@@ -1,16 +1,9 @@
-[gd_resource type="AudioBusLayout" load_steps=2 format=3]
+[gd_resource type="AudioBusLayout" format=3 uid="uid://cooy27txec0jx"]
 
 [sub_resource type="AudioEffectHardLimiter" id="PeakLimiter"]
 resource_name = "Mix Peak Limiter"
 ceiling_db = -1.0
-release = 0.1
 
 [resource]
-bus/0/name = &"Master"
-bus/0/solo = false
-bus/0/mute = false
-bus/0/bypass_fx = false
-bus/0/volume_db = 0.0
-bus/0/send = &""
 bus/0/effect/0/effect = SubResource("PeakLimiter")
 bus/0/effect/0/enabled = true

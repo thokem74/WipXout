@@ -71,6 +71,14 @@ save key is retained.
 - `scripts/racer.gd` implements spline progress, lateral drift, analytical wall
   boundaries, hover, boost, recovery, and AI. `scripts/race_progress.gd` validates
   forward movement and ordered checkpoints before awarding laps.
+- Each racer scene contains an editor-visible box hull covering the ship.
+  `scripts/racer_contacts.gd` sweeps hulls in track coordinates before movement
+  is committed: rear impacts block overtaking through another ship, while side
+  impacts separate racers and rebound lateral motion. The Area3D hull is used
+  as authored geometry, with engine overlap monitoring disabled; spline movement
+  needs its own contact response. Contacts wrap across the lap seam, respect
+  rail bounds using the full hull width, and cannot grant checkpoints. Finished
+  ships no longer block racers.
 - `resources/default_tuning.tres` exposes handling, boost, camera, and AI values.
   Mesh strips and emissive shaders provide open wireframe geometry independently
   of desktop wireframe rasterization. Dark road geometry occludes scenery below.
@@ -120,6 +128,7 @@ debug keystore for testing; production signing is outside this prototype.
 ```sh
 godot --headless --path . --editor --import --quit
 godot --headless --path . --script tests/test_runner.gd
+godot --headless --path . --script tests/racer_contacts_runner.gd
 godot --headless --path . --script tests/desktop_input_runner.gd
 godot --headless --audio-driver PulseAudio --path . --script tests/audio_output_runner.gd
 godot --path . --script tests/visual_runner.gd
@@ -137,11 +146,11 @@ mouse interaction, focus loss, and pause/restart resets. Layout checks and rende
 inspection cover 1280×720 and 1600×720. Track checks cover
 frame continuity, straight length, elevation, grade, alternating bends, section
 clearance, and camera clearance over full normal-speed and boost-speed laps.
-A clean simulated race takes **5:04.911**; the AI racers finish in **5:38.715** and
+A clean simulated race with ship contact takes **5:38.796**; the AI racers finish in **5:38.715** and
 **5:34.619**. These are gameplay timings, not device performance measurements.
 
 Verified on 2026-10-25 with Godot 4.7.2: clean headless import, **591 automated
-checks with zero failures**, seven keyboard-input checks, and rendered HUD checks
+checks with zero failures**, **23 racer-contact checks**, seven keyboard-input checks, and rendered HUD checks
 at both aspect ratios. The 0.1.1 debug APK was built, installed,
 and launched on a Samsung SM-A176B (Mali-G68, Vulkan Mobile). Tests cover fixed HDR/MSAA/bloom
 configuration and compatibility with older saves containing a Low preference.
@@ -153,6 +162,9 @@ The audio-output runner needs a real audio backend (the command above uses Linux
 PulseAudio). It captures actual mixer samples for player idle/load and nearby
 rivals, and checks combined racer/boost/cue peak headroom. Playback flags alone
 are insufficient to verify audible output.
+Contact checks cover boosted rear impacts at normal and long frame steps, swept
+side crossings, rails, clear-lane overtakes, recovery, lap seams, lapped racers,
+three-ship overlaps, finish blocking, and restart cleanup.
 Short Android racing samples with the louder recorded-engine mix measured
 43.9–44.9 FPS and a worst observed frame of 35.7 ms. Debug bus peaks reached
 -8.6 dB during acceleration, confirming non-silent mixer output; these short

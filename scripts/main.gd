@@ -87,8 +87,11 @@ func _physics_process(delta: float) -> void:
 			var input := controls if racer.ai_index < 0 else racer.ai_input(elapsed)
 			if demo_mode and racer.ai_index < 0:
 				input = Vector3(clampf(-racer.lateral_offset * 0.2 - racer.lateral_velocity * 0.12, -1, 1), 1, 0)
-			racer.simulate(delta, input, elapsed)
-			if racer.wall_hit and racer.ai_index < 0:
+			racer.prepare_step(delta, input)
+		RacerContacts.resolve(racers)
+		for racer in racers:
+			racer.finish_step(delta, elapsed)
+			if (racer.wall_hit or racer.contact_hit) and racer.ai_index < 0:
 				audio.cue("Wall")
 		var newly_finished: Array[Racer] = []
 		for racer in racers:

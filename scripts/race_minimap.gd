@@ -13,6 +13,19 @@ var map_scale: float = 1.0
 var map_origin := Vector2.ZERO
 
 
+func _draw() -> void:
+	if outline.size() < 2:
+		return
+	draw_polyline(outline, Color(0.14, 0.4, 0.55), 2.0, true)
+	draw_line(outline[0] - Vector2(4, 0), outline[0] + Vector2(4, 0), Color.WHITE, 2.0)
+	for index in range(dots.size()):
+		draw_line(dots[index], badges[index], colors[index] * Color(1, 1, 1, 0.7), 1.0, true)
+		draw_circle(dots[index], 4.0, colors[index])
+		if index == player_index:
+			draw_arc(dots[index], 6.0, 0, TAU, 16, Color.WHITE, 1.5, true)
+		draw_circle(badges[index], 10.0, colors[index])
+
+
 func setup(track: Circuit, field: Array[Racer]) -> void:
 	circuit = track
 	racers = field
@@ -41,7 +54,7 @@ func update_markers(standings: Array[Racer]) -> void:
 	colors.clear()
 	player_index = -1
 	for rank in range(standings.size()):
-		var racer := standings[rank]
+		var racer: Racer = standings[rank]
 		# A finished pilot stays at the line while its final rank remains fixed.
 		var distance := 0.0 if racer.finished_rank > 0 else racer.progress.distance
 		var dot := project(circuit.frame(distance).origin)
@@ -65,24 +78,11 @@ func place_badge(dot: Vector2) -> Vector2:
 			var angle := -PI * 0.5 + direction * TAU / 12.0
 			var candidate := dot + Vector2(cos(angle), sin(angle)) * (18.0 + ring * 13.0)
 			candidate = candidate.clamp(Vector2(12, 12), size - Vector2(12, 12))
-			var free := true
+			var is_available := true
 			for other: Vector2 in badges:
 				if candidate.distance_to(other) < 23.0:
-					free = false
+					is_available = false
 					break
-			if free:
+			if is_available:
 				return candidate
 	return Vector2(12 + badges.size() * 26, 12)
-
-
-func _draw() -> void:
-	if outline.size() < 2:
-		return
-	draw_polyline(outline, Color(0.14, 0.4, 0.55), 2.0, true)
-	draw_line(outline[0] - Vector2(4, 0), outline[0] + Vector2(4, 0), Color.WHITE, 2.0)
-	for index in range(dots.size()):
-		draw_line(dots[index], badges[index], colors[index] * Color(1, 1, 1, 0.7), 1.0, true)
-		draw_circle(dots[index], 4.0, colors[index])
-		if index == player_index:
-			draw_arc(dots[index], 6.0, 0, TAU, 16, Color.WHITE, 1.5, true)
-		draw_circle(badges[index], 10.0, colors[index])

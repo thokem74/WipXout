@@ -17,28 +17,40 @@ func build(circuit: Circuit) -> void:
 	var ribs: Array = []
 	var guides: Array = []
 	# Chamfered shoulders leave a broad ceiling above the chase camera.
-	var profile: Array[Vector3] = [Vector3(-HALF_WIDTH, -0.3, 0),
-		Vector3(-HALF_WIDTH, 9, 0), Vector3(-12, HEIGHT, 0),
-		Vector3(12, HEIGHT, 0), Vector3(HALF_WIDTH, 9, 0),
-		Vector3(HALF_WIDTH, -0.3, 0), Vector3(-HALF_WIDTH, -0.3, 0)]
-	var count := ceili(tunnel_length / STEP)
-	for i in range(count + 1):
-		var distance := start_distance + tunnel_length * float(i) / count
-		var here := circuit.frame(distance)
+	var profile: Array[Vector3] = [
+		Vector3(-HALF_WIDTH, -0.3, 0),
+		Vector3(-HALF_WIDTH, 9, 0),
+		Vector3(-12, HEIGHT, 0),
+		Vector3(12, HEIGHT, 0),
+		Vector3(HALF_WIDTH, 9, 0),
+		Vector3(HALF_WIDTH, -0.3, 0),
+		Vector3(-HALF_WIDTH, -0.3, 0),
+	]
+	var sample_count := ceili(tunnel_length / STEP)
+	for sample_index in range(sample_count + 1):
+		var distance := start_distance + tunnel_length * float(sample_index) / sample_count
+		var current_frame := circuit.frame(distance)
 		for point: Vector3 in profile:
-			vertices.append(here * point)
-		if i % 4 == 0 or i == count:
+			vertices.append(current_frame * point)
+		if sample_index % 4 == 0 or sample_index == sample_count:
 			for edge in range(profile.size() - 1):
-				NeonLines.add_line(ribs, here * profile[edge], here * profile[edge + 1])
-		if i == count:
+				NeonLines.add_line(
+						ribs, current_frame * profile[edge], current_frame * profile[edge + 1]
+				)
+		if sample_index == sample_count:
 			continue
-		var there := circuit.frame(start_distance + tunnel_length * float(i + 1) / count)
+		var next_frame := circuit.frame(
+				start_distance + tunnel_length * float(sample_index + 1) / sample_count
+		)
 		for side: float in [-1.0, 1.0]:
 			for height: float in [3.5, 8.8]:
-				NeonLines.add_line(guides, here * Vector3(side * 16.8, height, 0),
-					there * Vector3(side * 16.8, height, 0))
+				NeonLines.add_line(
+						guides,
+						current_frame * Vector3(side * 16.8, height, 0),
+						next_frame * Vector3(side * 16.8, height, 0)
+				)
 		for edge in range(profile.size() - 1):
-			var base := i * profile.size() + edge
+			var base := sample_index * profile.size() + edge
 			var next := base + profile.size()
 			indices.append_array(PackedInt32Array([base, next, next + 1, base, next + 1, base + 1]))
 	var arrays := []

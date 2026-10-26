@@ -18,5 +18,7 @@ func set_finger(position_on_pad: Vector2, active: bool) -> void:
 
 func update_indicator() -> void:
 	var half_size := size * 0.5
-	$Indicator.position = half_size + finger_position * (half_size - Vector2(12, 12)) - Vector2(10, 10)
+	$Indicator.position = (
+			half_size + finger_position * (half_size - Vector2(12, 12)) - Vector2(10, 10)
+	)
 	$Indicator.modulate = Color(1, 0.2, 0.8, 1) if finger_active else Color(0.2, 0.8, 1, 0.65)

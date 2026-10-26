@@ -14,10 +14,12 @@ func _process(delta: float) -> void:
 	time += delta
 	var path_frame := target.circuit.surface_frame(target.track_distance)
 	# Road-relative offsets keep the camera above the surface on hills.
-	var desired := (target.global_position + path_frame.basis.z * tuning.camera_distance
-		+ path_frame.basis.y * tuning.camera_height)
-	var look_point := (target.global_position - path_frame.basis.z * 19.0
-		+ path_frame.basis.y * 0.8)
+	var desired := (
+			target.global_position
+			+ path_frame.basis.z * tuning.camera_distance
+			+ path_frame.basis.y * tuning.camera_height
+	)
+	var look_point := target.global_position - path_frame.basis.z * 19.0 + path_frame.basis.y * 0.8
 	impulse = move_toward(impulse, 0.0, delta * 1.8)
 	if shake_enabled:
 		desired += path_frame.basis.y * sin(time * 45.0) * impulse

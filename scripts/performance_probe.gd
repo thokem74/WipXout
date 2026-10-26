@@ -30,14 +30,26 @@ func _process(delta: float) -> void:
 	duration += delta
 	frames += 1
 	worst_delta = maxf(worst_delta, delta)
-	audio_peak_db = maxf(audio_peak_db, maxf(
-		AudioServer.get_bus_peak_volume_left_db(0, 0),
-		AudioServer.get_bus_peak_volume_right_db(0, 0)))
+	audio_peak_db = maxf(
+			audio_peak_db,
+			maxf(
+					AudioServer.get_bus_peak_volume_left_db(0, 0),
+					AudioServer.get_bus_peak_volume_right_db(0, 0)
+			)
+	)
 	if duration >= 10.0:
-		print("NVR_METRICS fps=%.1f worst_frame_ms=%.1f draw_calls=%d triangles=%d audio_peak_db=%.1f" % [
-			frames / duration, worst_delta * 1000.0,
-			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
-			Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME), audio_peak_db])
+		print(
+				(
+						"NVR_METRICS fps=%.1f worst_frame_ms=%.1f draw_calls=%d triangles=%d audio_peak_db=%.1f"
+						% [
+							frames / duration,
+							worst_delta * 1000.0,
+							Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
+							Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME),
+							audio_peak_db,
+						]
+				)
+		)
 		duration = 0.0
 		frames = 0
 		worst_delta = 0.0

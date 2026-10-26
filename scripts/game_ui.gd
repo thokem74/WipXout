@@ -4,22 +4,23 @@ signal action_requested(action: String)
 signal setting_changed(setting: String, value: Variant)
 
 const PANEL_NAMES := ["MainMenu", "PauseMenu", "SettingsMenu", "ResultsMenu"]
-@onready var root: Control = $SafeArea
-@onready var hud: Control = $SafeArea/HUD
-@onready var overlay: Control = $SafeArea/Overlay
 var active_screen: String = ""
 var racer_count: int = 6
 var impact_amount: float = 0.0
 var message_time: float = 0.0
 
+@onready var root: Control = $SafeArea
+@onready var hud: Control = $SafeArea/HUD
+@onready var overlay: Control = $SafeArea/Overlay
+
 
 func _ready() -> void:
 	for button: Button in get_tree().get_nodes_in_group("menu_button"):
-		button.pressed.connect(func() -> void: action_requested.emit(str(button.get_meta("action"))))
-	$SafeArea/HUD/Pause.pressed.connect(func() -> void: action_requested.emit("pause"))
-	$SafeArea/Overlay/SettingsMenu/Volume.value_changed.connect(func(value: float) -> void: setting_changed.emit("volume", value))
-	$SafeArea/Overlay/SettingsMenu/Shake.toggled.connect(func(value: bool) -> void: setting_changed.emit("camera_shake", value))
-	$SafeArea/Overlay/SettingsMenu/Sensitivity.value_changed.connect(func(value: float) -> void: setting_changed.emit("sensitivity", value))
+		button.pressed.connect(_on_menu_button_pressed.bind(button))
+	$SafeArea/HUD/Pause.pressed.connect(_on_pause_pressed)
+	$SafeArea/Overlay/SettingsMenu/Volume.value_changed.connect(_on_volume_changed)
+	$SafeArea/Overlay/SettingsMenu/Shake.toggled.connect(_on_camera_shake_toggled)
+	$SafeArea/Overlay/SettingsMenu/Sensitivity.value_changed.connect(_on_sensitivity_changed)
 	get_viewport().size_changed.connect(update_safe_area)
 	update_safe_area()
 
@@ -32,8 +33,12 @@ func update_safe_area() -> void:
 		var viewport_size := get_viewport().get_visible_rect().size
 		if screen.x > 0 and screen.y > 0:
 			var scale_factor := viewport_size / Vector2(screen)
-			inset.x = maxf(inset.x, maxf(safe.position.x, screen.x - safe.end.x) * scale_factor.x + 12)
-			inset.y = maxf(inset.y, maxf(safe.position.y, screen.y - safe.end.y) * scale_factor.y + 10)
+			inset.x = maxf(
+					inset.x, maxf(safe.position.x, screen.x - safe.end.x) * scale_factor.x + 12
+			)
+			inset.y = maxf(
+					inset.y, maxf(safe.position.y, screen.y - safe.end.y) * scale_factor.y + 10
+			)
 	root.offset_left = inset.x
 	root.offset_right = -inset.x
 	root.offset_top = inset.y
@@ -82,9 +87,16 @@ func set_pad_position(position: Vector2, active: bool) -> void:
 
 
 func show_results(player: Racer, data: SaveData) -> void:
-	$SafeArea/Overlay/ResultsMenu/Result.text = "POSITION  %d / %d\n\nRACE  %s\nBEST LAP  %s\n\nLOCAL BEST  %s" % [
-		player.finished_rank, racer_count, format_time(player.progress.finish_time),
-		format_time(player.progress.best_lap), format_time(data.best_race)]
+	$SafeArea/Overlay/ResultsMenu/Result.text = (
+			"POSITION  %d / %d\n\nRACE  %s\nBEST LAP  %s\n\nLOCAL BEST  %s"
+			% [
+				player.finished_rank,
+				racer_count,
+				format_time(player.progress.finish_time),
+				format_time(player.progress.best_lap),
+				format_time(data.best_race),
+			]
+	)
 	show_screen("ResultsMenu")
 
 
@@ -92,7 +104,9 @@ static func format_time(seconds: float) -> String:
 	if not is_finite(seconds) or seconds < 0:
 		return "--:--.---"
 	var milliseconds := roundi(seconds * 1000.0)
-	return "%02d:%02d.%03d" % [milliseconds / 60000, (milliseconds / 1000) % 60, milliseconds % 1000]
+	return (
+			"%02d:%02d.%03d" % [milliseconds / 60000, (milliseconds / 1000) % 60, milliseconds % 1000]
+	)
 
 
 func setup_race(circuit: Circuit, racers: Array[Racer]) -> void:
@@ -130,3 +144,23 @@ func reset_effects() -> void:
 	var material: ShaderMaterial = $SafeArea/HUD/SpeedEffects.material
 	material.set_shader_parameter("boost_amount", 0.0)
 	material.set_shader_parameter("impact_amount", 0.0)
+
+
+func _on_menu_button_pressed(button: Button) -> void:
+	action_requested.emit(str(button.get_meta("action")))
+
+
+func _on_pause_pressed() -> void:
+	action_requested.emit("pause")
+
+
+func _on_volume_changed(value: float) -> void:
+	setting_changed.emit("volume", value)
+
+
+func _on_camera_shake_toggled(value: bool) -> void:
+	setting_changed.emit("camera_shake", value)
+
+
+func _on_sensitivity_changed(value: float) -> void:
+	setting_changed.emit("sensitivity", value)

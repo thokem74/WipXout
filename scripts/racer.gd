@@ -110,49 +110,9 @@ func prepare_step(delta: float, controls: Vector3) -> void:
 		return
 	advance_flight(delta)
 	var throttle := clampf(controls.y, -1.0, 1.0)
-	if boost_locked and boost_charge >= 0.25:
-		boost_locked = false
-	boost_active = controls.z > 0.5 and boost_charge > 0.0 and not boost_locked and throttle >= 0.0
-	# Audio load follows the pilot's demand independently of the current speed.
-	engine_load = 1.0 if boost_active else maxf(throttle, 0.0)
-	if boost_active:
-		boost_charge = maxf(0.0, boost_charge - tuning.boost_drain * delta)
-		recharge_delay = tuning.boost_cooldown
-		if boost_charge == 0.0:
-			boost_locked = true
-	else:
-		recharge_delay = maxf(0.0, recharge_delay - delta)
-		if recharge_delay == 0.0:
-			boost_charge = minf(1.0, boost_charge + tuning.boost_recharge * delta)
-	var maximum := tuning.boost_speed if boost_active else tuning.top_speed
-	var force := throttle * (tuning.acceleration if throttle >= 0 else tuning.braking)
-	if boost_active:
-		force = tuning.acceleration * 1.8
-	if absf(throttle) < 0.05 and not boost_active:
-		force = -tuning.coast_drag
-	if speed > maximum:
-		speed = move_toward(speed, maximum, maxf(18.0, -force) * delta)
-	else:
-		speed = clampf(speed + force * delta, 0.0, maximum)
-	var turn := circuit.curvature(track_distance)
-	# A gentle outward drift makes lines meaningful without requiring vehicle physics.
-	var steering_force := controls.x * tuning.steering_acceleration
-	if airborne:
-		steering_force *= tuning.air_steering_factor
-	lateral_velocity += (steering_force + turn * speed * speed * 0.16) * delta
-	lateral_velocity *= exp(-tuning.lateral_damping * delta)
-	lateral_offset += lateral_velocity * delta
-	var limit := lateral_limit()
-	if absf(lateral_offset) > limit:
-		if absf(lateral_offset) > Circuit.WIDTH * 1.5:
-			recover()
-		else:
-			lateral_offset = clampf(lateral_offset, -limit, limit)
-			lateral_velocity = -signf(lateral_offset) * 3.0
-			if wall_cooldown <= 0.0:
-				speed *= tuning.wall_speed_retention
-				wall_hit = true
-				wall_cooldown = 0.6
+	_update_boost(delta, controls, throttle)
+	_update_speed(delta, throttle)
+	_update_lateral_movement(delta, controls.x)
 	track_distance += speed * delta
 
 
@@ -210,8 +170,10 @@ func try_takeoff(delta: float) -> void:
 		vertical_velocity = minf(speed * jump.launch_strength, tuning.maximum_launch_speed)
 		# Contacts have already limited progress. Only simulate the time after the
 		# actual crossing, so long frames neither launch early nor extend airtime.
-		var remaining := (track_distance - lip) / (track_distance - previous_track_distance)
-		advance_flight(delta * remaining)
+		var remaining_fraction: float = (
+				(track_distance - lip) / (track_distance - previous_track_distance)
+		)
+		advance_flight(delta * remaining_fraction)
 		return
 
 
@@ -246,5 +208,59 @@ func update_pose(delta: float) -> void:
 	position += basis.x * lateral_offset + basis.y * (tuning.hover_height + air_height + bob)
 	var pitch := atan2(vertical_velocity, maxf(speed, 1.0)) if airborne else 0.0
 	$Wireframe.rotation.x = lerp_angle($Wireframe.rotation.x, pitch, 1.0 - exp(-delta * 8.0))
-	$Wireframe.rotation.z = lerp_angle($Wireframe.rotation.z, -lateral_velocity * 0.035, 1.0 - exp(-delta * 8.0))
+	$Wireframe.rotation.z = lerp_angle(
+			$Wireframe.rotation.z, -lateral_velocity * 0.035, 1.0 - exp(-delta * 8.0)
+	)
 	$Wireframe.rotation.y = -lateral_velocity * 0.012
+
+
+func _update_boost(delta: float, controls: Vector3, throttle: float) -> void:
+	if boost_locked and boost_charge >= 0.25:
+		boost_locked = false
+	boost_active = controls.z > 0.5 and boost_charge > 0.0 and not boost_locked and throttle >= 0.0
+	# Audio load follows the pilot's demand independently of the current speed.
+	engine_load = 1.0 if boost_active else maxf(throttle, 0.0)
+	if boost_active:
+		boost_charge = maxf(0.0, boost_charge - tuning.boost_drain * delta)
+		recharge_delay = tuning.boost_cooldown
+		if boost_charge == 0.0:
+			boost_locked = true
+	else:
+		recharge_delay = maxf(0.0, recharge_delay - delta)
+		if recharge_delay == 0.0:
+			boost_charge = minf(1.0, boost_charge + tuning.boost_recharge * delta)
+
+
+func _update_speed(delta: float, throttle: float) -> void:
+	var maximum_speed := tuning.boost_speed if boost_active else tuning.top_speed
+	var acceleration_force := throttle * (tuning.acceleration if throttle >= 0 else tuning.braking)
+	if boost_active:
+		acceleration_force = tuning.acceleration * 1.8
+	if absf(throttle) < 0.05 and not boost_active:
+		acceleration_force = -tuning.coast_drag
+	if speed > maximum_speed:
+		speed = move_toward(speed, maximum_speed, maxf(18.0, -acceleration_force) * delta)
+	else:
+		speed = clampf(speed + acceleration_force * delta, 0.0, maximum_speed)
+
+
+func _update_lateral_movement(delta: float, steering: float) -> void:
+	var turn := circuit.curvature(track_distance)
+	# A gentle outward drift makes lines meaningful without requiring vehicle physics.
+	var steering_force := steering * tuning.steering_acceleration
+	if airborne:
+		steering_force *= tuning.air_steering_factor
+	lateral_velocity += (steering_force + turn * speed * speed * 0.16) * delta
+	lateral_velocity *= exp(-tuning.lateral_damping * delta)
+	lateral_offset += lateral_velocity * delta
+	var limit := lateral_limit()
+	if absf(lateral_offset) > limit:
+		if absf(lateral_offset) > Circuit.WIDTH * 1.5:
+			recover()
+		else:
+			lateral_offset = clampf(lateral_offset, -limit, limit)
+			lateral_velocity = -signf(lateral_offset) * 3.0
+			if wall_cooldown <= 0.0:
+				speed *= tuning.wall_speed_retention
+				wall_hit = true
+				wall_cooldown = 0.6

@@ -56,8 +56,10 @@ func run() -> void:
 	player.engine_load = 1.0
 	game.audio.update_racers(game.racers, true, 1.0)
 	var loaded_output := await sample_output()
-	check(loaded_output.x > 0.02 and loaded_output.y < 0.95,
-		"Loaded engine reaches output with headroom")
+	check(
+			loaded_output.x > 0.02 and loaded_output.y < 0.95,
+			"Loaded engine reaches output with headroom"
+	)
 	game.audio.stop_all()
 	var rival: AudioStreamPlayer3D = game.audio.get_node("RivalOneLoad")
 	rival.global_position = game.camera.global_position + Vector3(0, 0, -8)
@@ -79,16 +81,24 @@ func run() -> void:
 	game.audio.cue("Landing")
 	game.audio.cue("PositionGain")
 	var combined_output := await sample_output()
-	check(combined_output.y <= db_to_linear(-1.0) + 0.002,
-		"Combined racers, boost and cue retain peak headroom")
+	check(
+			combined_output.y <= db_to_linear(-1.0) + 0.002,
+			"Combined racers, boost and cue retain peak headroom"
+	)
 	# Capture is pre-fader; the main test runner separately checks the volume UI.
-	print("AUDIO_OUTPUT RMS idle=%.4f loaded=%.4f rival=%.4f peak=%.4f" % [
-		idle_output.x, loaded_output.x, rival_output.x, combined_output.y])
+	print(
+			(
+					"AUDIO_OUTPUT RMS idle=%.4f loaded=%.4f rival=%.4f peak=%.4f"
+					% [idle_output.x, loaded_output.x, rival_output.x, combined_output.y]
+			)
+	)
 	# Verify the shared engine bus responds to tunnel entry and exit smoothly.
 	player.track_distance = 500.0
 	game.audio.update_racers(game.racers, true, 0.05)
-	check(game.audio.tunnel_wet > 0.0 and game.audio.tunnel_wet < 0.18,
-		"Tunnel reverb fades in rather than switching abruptly")
+	check(
+			game.audio.tunnel_wet > 0.0 and game.audio.tunnel_wet < 0.18,
+			"Tunnel reverb fades in rather than switching abruptly"
+	)
 	game.audio.update_racers(game.racers, true, 1.0)
 	var tunnel_mix := await sample_output()
 	check(tunnel_mix.y <= db_to_linear(-1.0) + 0.002, "Tunnel mix retains limiter headroom")

@@ -29,7 +29,12 @@ func run() -> void:
 		racer.speed = 88.0
 		racer.update_pose(0.1)
 	game.camera.snap_next = true
-	print("Environment: ", game.camera.get_world_3d().environment, " expected ", game.get_node("WorldEnvironment").environment)
+	print(
+			"Environment: ",
+			game.camera.get_world_3d().environment,
+			" expected ",
+			game.get_node("WorldEnvironment").environment
+	)
 	game.ui.update_hud(game.racers[0], 3, 12.52)
 	for resolution: Vector2i in [Vector2i(1280, 720), Vector2i(1600, 720)]:
 		viewport.size = resolution
@@ -42,7 +47,9 @@ func run() -> void:
 		assert(pad_rect.size == Vector2(240, 240), "Pad must remain 240 logical pixels")
 		assert(boost_rect.end.x < pad_rect.position.x, "Driving controls must not overlap")
 		assert(Rect2(Vector2.ZERO, Vector2(resolution)).encloses(pad_rect), "Pad stays onscreen")
-		assert(Rect2(Vector2.ZERO, Vector2(resolution)).encloses(boost_rect), "Boost stays onscreen")
+		assert(
+				Rect2(Vector2.ZERO, Vector2(resolution)).encloses(boost_rect), "Boost stays onscreen"
+		)
 		var image := viewport.get_texture().get_image()
 		var name := "/tmp/neon-high-%d.png" % resolution.x
 		image.save_png(name)
@@ -90,17 +97,21 @@ func run() -> void:
 		for section: String in sections:
 			for index in range(game.racers.size()):
 				var racer: Racer = game.racers[index]
-				racer.reset(sections[section] + index * 24.0, (-5.0 if index % 2 == 0 else 5.0))
+				racer.reset(sections[section] + index * 24.0, -5.0 if index % 2 == 0 else 5.0)
 				racer.speed = 88.0
 				if jump_views.has(section):
-					racer.reset(jump_views[section] - 50.0, (-5.0 if index % 2 == 0 else 5.0))
+					racer.reset(jump_views[section] - 50.0, -5.0 if index % 2 == 0 else 5.0)
 					racer.speed = 88.0
-					racer.progress.next_checkpoint = floori(racer.track_distance / game.circuit.length * 16) + 1
+					racer.progress.next_checkpoint = (
+							floori(racer.track_distance / game.circuit.length * 16) + 1
+					)
 					var steps := 0
 					while racer.track_distance < sections[section] + index * 24.0:
 						steps += 1
 						assert(steps < 600, "Staged jump must make forward progress")
-						var steering := clampf(-racer.lateral_offset * 0.2 - racer.lateral_velocity * 0.12, -1, 1)
+						var steering := clampf(
+								-racer.lateral_offset * 0.2 - racer.lateral_velocity * 0.12, -1, 1
+						)
 						racer.simulate(1.0 / 60.0, Vector3(steering, 1, 0), 1.0)
 				racer.update_pose(0.1)
 				racer.effects.update_racer(racer, 0.1)
@@ -123,7 +134,9 @@ func run() -> void:
 			if view != "grid":
 				for index in range(game.racers.size()):
 					var racer: Racer = game.racers[index]
-					var distance := 1400.0 + index * 900.0 if view == "field" else 1400.0 + index * 14.0
+					var distance := (
+							1400.0 + index * 900.0 if view == "field" else 1400.0 + index * 14.0
+					)
 					racer.reset(distance, -5.0 if index % 2 == 0 else 5.0)
 					racer.speed = 116.0 if view == "boost" else 88.0
 					racer.engine_load = 1.0
@@ -141,7 +154,9 @@ func run() -> void:
 			for i in range(20):
 				await process_frame
 			await RenderingServer.frame_post_draw
-			viewport.get_texture().get_image().save_png("/tmp/neon-arcade-%s-%d.png" % [view, resolution.x])
+			viewport.get_texture().get_image().save_png(
+					"/tmp/neon-arcade-%s-%d.png" % [view, resolution.x]
+			)
 			print("Saved arcade view ", view, " at ", resolution.x)
 	for screen: String in ["SettingsMenu", "PauseMenu", "ResultsMenu"]:
 		game.ui.show_screen(screen)

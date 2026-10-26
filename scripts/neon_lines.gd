@@ -3,6 +3,7 @@ class_name NeonLines
 extends RefCounted
 ## One indexed triangle batch per colour, independent of polygon wireframe support.
 
+
 static func material(color: Color, energy: float = 1.5) -> ShaderMaterial:
 	var result := ShaderMaterial.new()
 	result.shader = preload("res://resources/neon_core.gdshader")
@@ -27,17 +28,37 @@ static func mesh(segments: Array, width: float) -> ArrayMesh:
 		var up := direction.cross(side).normalized() * width * 0.5
 		var base := vertices.size()
 		# Crossed ribbons have a bright core from all viewing directions.
-		vertices.append_array(PackedVector3Array([
-			start - side, start + side, end + side, end - side,
-			start - up, start + up, end + up, end - up]))
+		vertices.append_array(
+				PackedVector3Array(
+						[
+							start - side,
+							start + side,
+							end + side,
+							end - side,
+							start - up,
+							start + up,
+							end + up,
+							end - up,
+						]
+				)
+		)
 		var offsets: Array[Vector3] = [-side, side, side, -side, -up, up, up, -up]
 		for vertex_index in range(8):
 			normals.append(offsets[vertex_index].normalized())
 			uvs.append(Vector2(width * 0.5, 1.0 if vertex_index % 4 in [1, 2] else 0.0))
 		for offset: int in [0, 4]:
-			indices.append_array(PackedInt32Array([
-				base + offset, base + offset + 1, base + offset + 2,
-				base + offset, base + offset + 2, base + offset + 3]))
+			indices.append_array(
+					PackedInt32Array(
+							[
+								base + offset,
+								base + offset + 1,
+								base + offset + 2,
+								base + offset,
+								base + offset + 2,
+								base + offset + 3,
+							]
+					)
+			)
 	var result := ArrayMesh.new()
 	if vertices.is_empty():
 		return result

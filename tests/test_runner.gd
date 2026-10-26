@@ -64,7 +64,10 @@ func run() -> void:
 	player.simulate(0.1, Vector3(0, -1, 0), 11.3)
 	check(player.speed < previous_speed, "Brake reduces speed")
 	game.start_race()
-	check(game.state == game.State.COUNTDOWN and not game.driving.enabled, "Play enters countdown without calibration")
+	check(
+			game.state == game.State.COUNTDOWN and not game.driving.enabled,
+			"Play enters countdown without calibration"
+	)
 	# Isolate input response from the crowded six-racer starting grid.
 	for index in range(1, game.racers.size()):
 		game.racers[index].reset(1000.0 + index * 16.0, 5.0)
@@ -81,8 +84,13 @@ func run() -> void:
 	drag(game.driving, 0, pad_top + Vector2(110, 0))
 	for i in range(30):
 		game._physics_process(1.0 / 60.0)
-	check(player.lateral_offset > steering_start + 1, "HUD diagonal accelerates and steers actual racer")
-	check(game.ui.get_node("SafeArea/HUD/DrivingPad").finger_active, "Pad indicator follows capture")
+	check(
+			player.lateral_offset > steering_start + 1,
+			"HUD diagonal accelerates and steers actual racer"
+	)
+	check(
+			game.ui.get_node("SafeArea/HUD/DrivingPad").finger_active, "Pad indicator follows capture"
+	)
 	touch(game.driving, 4, game.ui.get_boost_rect().get_center(), true)
 	game._physics_process(0.016)
 	check(player.boost_active, "Independent HUD Boost finger activates actual boost")
@@ -95,7 +103,9 @@ func run() -> void:
 	game._on_action("resume")
 	check(game.state == game.State.RACING, "Resume restores race directly")
 	drag(game.driving, 0, pad_top)
-	check(game.driving.read_controls(0.016) == Vector3.ZERO, "Held HUD finger cannot resume driving")
+	check(
+			game.driving.read_controls(0.016) == Vector3.ZERO, "Held HUD finger cannot resume driving"
+	)
 	game._notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
 	check(game.state == game.State.PAUSED, "Focus loss pauses")
 	game._on_action("restart")
@@ -115,7 +125,20 @@ func run() -> void:
 				jump_counts[index] += 1
 			previously_airborne[index] = game.racers[index].airborne
 		if i % 6000 == 0:
-			print("TRACE time=", game.elapsed, " distance=", player.track_distance, " progress length=", player.progress.circuit_length, " laps=", player.progress.completed_laps, " speed=", player.speed, " boost=", player.boost_charge)
+			print(
+					"TRACE time=",
+					game.elapsed,
+					" distance=",
+					player.track_distance,
+					" progress length=",
+					player.progress.circuit_length,
+					" laps=",
+					player.progress.completed_laps,
+					" speed=",
+					player.speed,
+					" boost=",
+					player.boost_charge
+			)
 		if game.finish_order.size() == 6:
 			break
 	check(jump_counts == [6, 6, 6, 6, 6, 6], "All racers take both jumps on every lap")
@@ -124,18 +147,36 @@ func run() -> void:
 	check(player.progress.completed_laps == 3, "Player completes exactly three laps")
 	for rival: Racer in game.racers.slice(1):
 		check(rival.progress.completed_laps == 3, "Every AI completes three laps")
-	check(player.progress.finish_time > 300 and player.progress.finish_time < 600,
-		"Revised race duration stays within the ten-minute simulation budget")
+	check(
+			player.progress.finish_time > 300 and player.progress.finish_time < 600,
+			"Revised race duration stays within the ten-minute simulation budget"
+	)
 	check(player.finished_rank >= 1 and player.finished_rank <= 6, "Finish rank assigned")
 	check(is_finite(player.progress.best_lap), "Best lap recorded")
-	print("Finish times: player=%.3f, ION=%.3f, EMBER=%.3f" % [player.progress.finish_time, game.racers[1].progress.finish_time, game.racers[2].progress.finish_time])
+	print(
+			(
+					"Finish times: player=%.3f, ION=%.3f, EMBER=%.3f"
+					% [
+						player.progress.finish_time,
+						game.racers[1].progress.finish_time,
+						game.racers[2].progress.finish_time,
+					]
+			)
+	)
 	var ranks := []
 	for racer: Racer in game.racers:
 		ranks.append(racer.finished_rank)
 	ranks.sort()
 	check(ranks == [1, 2, 3, 4, 5, 6], "Finishing order contains unique ranks")
 	game._on_action("restart")
-	check(game.finish_order.is_empty() and player.progress.completed_laps == 0 and player.boost_charge == 1, "Completed race restarts cleanly")
+	check(
+			(
+					game.finish_order.is_empty()
+					and player.progress.completed_laps == 0
+					and player.boost_charge == 1
+			),
+			"Completed race restarts cleanly"
+	)
 	game.apply_settings()
 	game.free()
 	print("CHECKS: %d  FAILURES: %d" % [checks, failures])
@@ -150,21 +191,42 @@ func test_audio(game: Node) -> void:
 	var rival: AudioStreamPlayer3D = audio.get_node("RivalOneIdle")
 	var turbine: AudioStreamPlayer3D = audio.get_node("RivalTwoIdle")
 	var boost: AudioStreamPlayer = audio.get_node("Boost")
-	for name: String in ["EngineIdle", "EngineLoad", "RivalOneIdle", "RivalOneLoad",
-			"RivalTwoIdle", "RivalTwoLoad", "Boost"]:
+	for name: String in [
+		"EngineIdle",
+		"EngineLoad",
+		"RivalOneIdle",
+		"RivalOneLoad",
+		"RivalTwoIdle",
+		"RivalTwoLoad",
+		"Boost",
+	]:
 		var stream := audio.get_node(name).stream as AudioStreamWAV
-		check(stream.loop_mode == AudioStreamWAV.LOOP_FORWARD
-			and stream.loop_end == stream.mix_rate * 2, "Full seamless loop: " + name)
+		check(
+				(
+						stream.loop_mode == AudioStreamWAV.LOOP_FORWARD
+						and stream.loop_end == stream.mix_rate * 2
+				),
+				"Full seamless loop: " + name
+		)
 	var rival_loaded: AudioStreamPlayer3D = audio.get_node("RivalOneLoad")
-	check(engine.stream.data == rival.stream.data and loaded.stream.data == rival_loaded.stream.data
-		and rival.stream.data != turbine.stream.data,
-		"Player shares ION's idle/loaded profile while EMBER keeps its turbine sound")
+	check(
+			(
+					engine.stream.data == rival.stream.data
+					and loaded.stream.data == rival_loaded.stream.data
+					and rival.stream.data != turbine.stream.data
+			),
+			"Player shares ION's idle/loaded profile while EMBER keeps its turbine sound"
+	)
 	audio.countdown_tick(3)
 	var first_pitch: float = audio.get_node("Countdown").pitch_scale
 	audio.countdown_tick(1)
-	check(audio.get_node("Countdown").pitch_scale > first_pitch, "Countdown urgency rises toward GO")
-	check(audio.get_node("Go").stream != audio.get_node("Finish").stream,
-		"Launch and finish have distinct racing signals")
+	check(
+			audio.get_node("Countdown").pitch_scale > first_pitch, "Countdown urgency rises toward GO"
+	)
+	check(
+			audio.get_node("Go").stream != audio.get_node("Finish").stream,
+			"Launch and finish have distinct racing signals"
+	)
 	var player: Racer = game.racers[0]
 	player.reset()
 	player.simulate(1.0 / 60.0, Vector3(0, 0.5, 0), 0.0)
@@ -187,8 +249,10 @@ func test_audio(game: Node) -> void:
 	check(engine.pitch_scale > idle_pitch, "Mechanical engine RPM rises with speed and load")
 	check(loaded.volume_db > engine.volume_db, "Acceleration crossfades into the loaded recording")
 	check(boost.playing and boost.volume_db > -30.0, "Boost roar fades in")
-	check(rival.global_position.is_equal_approx(game.racers[1].global_position),
-		"Rival audio follows its ship in 3D")
+	check(
+			rival.global_position.is_equal_approx(game.racers[1].global_position),
+			"Rival audio follows its ship in 3D"
+	)
 	player.engine_load = 0.0
 	player.boost_active = false
 	for i in range(60):
@@ -206,12 +270,21 @@ func test_audio(game: Node) -> void:
 	var receding: float = audio.passby_pitch(other, player)
 	check(approaching > 1.0 and receding < 1.0, "Passing rivals change from higher to lower pitch")
 	other.position.z = 100000.0
-	check(audio.passby_pitch(other, player) <= 1.25 and receding >= 0.8,
-		"Pass-by pitch remains bounded after teleports")
+	check(
+			audio.passby_pitch(other, player) <= 1.25 and receding >= 0.8,
+			"Pass-by pitch remains bounded after teleports"
+	)
 	game.state = game.State.RACING
 	game.pause_race()
-	check(not engine.playing and not loaded.playing and not rival.playing
-		and not audio.get_node("Countdown").playing, "Pause stops all layers and cues")
+	check(
+			(
+					not engine.playing
+					and not loaded.playing
+					and not rival.playing
+					and not audio.get_node("Countdown").playing
+			),
+			"Pause stops all layers and cues"
+	)
 	game.start_race()
 	check(not engine.playing and not boost.playing, "Restart clears previous audio playback")
 	var original_volume: float = game.data.volume
@@ -292,21 +365,34 @@ func test_track_layout(circuit: Circuit) -> void:
 	check(frames_valid, "Track frames remain finite and orthonormal over hills")
 	check(longest_straight <= 180.0, "Straight sections stay within 180 metres, including the seam")
 	check(short_straights >= 1, "Starting grid retains a short 100–180 metre straight")
-	check(circuit.length >= 8451.0 and circuit.length <= 10329.0,
-		"Circuit stays within ten percent of original length")
+	check(
+			circuit.length >= 8451.0 and circuit.length <= 10329.0,
+			"Circuit stays within ten percent of original length"
+	)
 	if slope_length >= 380.0:
 		sustained_slopes += 1
-	check(sustained_slopes >= 8 and longest_slope <= 430.0,
-		"Four climb/descent pairs fit the one-third graded course")
-	check(maximum_bend >= 1.0 / 110.0 and maximum_bend <= 1.0 / 75.0,
-		"Hardest corners have approximately 75–110 metre radii")
+	check(
+			sustained_slopes >= 8 and longest_slope <= 430.0,
+			"Four climb/descent pairs fit the one-third graded course"
+	)
+	check(
+			maximum_bend >= 1.0 / 110.0 and maximum_bend <= 1.0 / 75.0,
+			"Hardest corners have approximately 75–110 metre radii"
+	)
 	check(turn_reversals >= 6, "Track includes at least three alternating S-bend sequences")
-	check(maximum_height - minimum_height >= 38.0 and maximum_height - minimum_height <= 43.0,
-		"Track elevation matches the ten-percent graded runs")
+	check(
+			maximum_height - minimum_height >= 38.0 and maximum_height - minimum_height <= 43.0,
+			"Track elevation matches the ten-percent graded runs"
+	)
 	check(crests >= 4 and dips >= 3, "Track has four distinct climbs and descents")
-	check(maximum_grade >= 0.095 and maximum_grade <= 0.11, "Track grades are approximately ten percent")
-	check(float(sloped_samples) / samples >= 0.32 and float(sloped_samples) / samples <= 0.35,
-		"One third of the lap is uphill/downhill, leaving two thirds level")
+	check(
+			maximum_grade >= 0.095 and maximum_grade <= 0.11,
+			"Track grades are approximately ten percent"
+	)
+	check(
+			float(sloped_samples) / samples >= 0.32 and float(sloped_samples) / samples <= 0.35,
+			"One third of the lap is uphill/downhill, leaving two thirds level"
+	)
 	var hard_grade_cuts := 0
 	for index in range(circuit.route.curve.point_count - 1):
 		var incoming: Vector3 = -circuit.route.curve.get_point_in(index)
@@ -315,8 +401,16 @@ func test_track_layout(circuit: Circuit) -> void:
 		var after := outgoing.y / maxf(Vector2(outgoing.x, outgoing.z).length(), 0.001)
 		if absf(before - after) > 0.075:
 			hard_grade_cuts += 1
-	check(hard_grade_cuts >= 16, "Each climb and descent directly meets level road without eased slopes")
-	print("Sloped track: %.1f%%, hard grade cuts: %d" % [100.0 * sloped_samples / samples, hard_grade_cuts])
+	check(
+			hard_grade_cuts >= 16,
+			"Each climb and descent directly meets level road without eased slopes"
+	)
+	print(
+			(
+					"Sloped track: %.1f%%, hard grade cuts: %d"
+					% [100.0 * sloped_samples / samples, hard_grade_cuts]
+			)
+	)
 	# Non-neighbouring road samples must leave room for the full track width.
 	var clearance_valid := true
 	var neighbour_samples := ceili(100.0 / step)
@@ -329,10 +423,14 @@ func test_track_layout(circuit: Circuit) -> void:
 	check(clearance_valid, "Separate track sections do not overlap")
 	var road_center := circuit.frame(circuit.length / 2.0).origin
 	road_center.y = -50.0
-	check(not circuit.has_scenery_clearance(road_center, 40.0),
-		"Scenery clearance rejects buildings below elevated road sections")
-	check(circuit.has_scenery_clearance(Vector3(10000, -50, 10000), 40.0),
-		"Scenery clearance allows buildings away from the road")
+	check(
+			not circuit.has_scenery_clearance(road_center, 40.0),
+			"Scenery clearance rejects buildings below elevated road sections"
+	)
+	check(
+			circuit.has_scenery_clearance(Vector3(10000, -50, 10000), 40.0),
+			"Scenery clearance allows buildings away from the road"
+	)
 	# Changing pitch on an otherwise straight path must not steer the ship.
 	var climb := Circuit.new()
 	var path := Path3D.new()
@@ -345,38 +443,64 @@ func test_track_layout(circuit: Circuit) -> void:
 	climb.length = path.curve.get_baked_length()
 	check(absf(climb.curvature(70.0)) < 0.000001, "Pitch changes do not create steering curvature")
 	climb.free()
-	print("Track profile: %.1f m, %.1f m elevation, %.1f%% maximum grade, %.1f m longest straight" % [
-		circuit.length, maximum_height - minimum_height, maximum_grade * 100.0, longest_straight])
+	print(
+			(
+					"Track profile: %.1f m, %.1f m elevation, %.1f%% maximum grade, %.1f m longest straight"
+					% [
+						circuit.length,
+						maximum_height - minimum_height,
+						maximum_grade * 100.0,
+						longest_straight,
+					]
+			)
+	)
 
 
 func test_tunnels(circuit: Circuit) -> void:
 	var tunnels := circuit.get_node("Tunnels").get_children()
 	check(tunnels.size() == 3, "Three authored tunnel sections")
 	for tunnel: TrackTunnel in tunnels:
-		check(tunnel.tunnel_length >= 600.0 and tunnel.tunnel_length <= 800.0,
-			"Tunnel length is between 600 and 800 metres")
-		check(tunnel.start_distance > 0.0 and tunnel.start_distance + tunnel.tunnel_length < circuit.length,
-			"Tunnels leave the grid and lap seam open")
+		check(
+				tunnel.tunnel_length >= 600.0 and tunnel.tunnel_length <= 800.0,
+				"Tunnel length is between 600 and 800 metres"
+		)
+		check(
+				(
+						tunnel.start_distance > 0.0
+						and tunnel.start_distance + tunnel.tunnel_length < circuit.length
+				),
+				"Tunnels leave the grid and lap seam open"
+		)
 		var shell: Mesh = tunnel.get_node("Shell").mesh
-		check(shell != null and shell.get_surface_count() == 1, "Tunnel has an opaque continuous shell")
+		check(
+				shell != null and shell.get_surface_count() == 1,
+				"Tunnel has an opaque continuous shell"
+		)
 		for node_name: String in ["Ribs", "Guides"]:
-			check(tunnel.get_node(node_name).mesh.get_surface_count() == 1, "Tunnel neon outlines exist")
+			check(
+					tunnel.get_node(node_name).mesh.get_surface_count() == 1,
+					"Tunnel neon outlines exist"
+			)
 	var climb: TrackTunnel = tunnels[0]
-	check(-circuit.frame(climb.start_distance + climb.tunnel_length / 2.0).basis.z.y > 0.09,
-		"Hill tunnel follows a sustained climb")
+	check(
+			-circuit.frame(climb.start_distance + climb.tunnel_length / 2.0).basis.z.y > 0.09,
+			"Hill tunnel follows a sustained climb"
+	)
 	var bend: TrackTunnel = tunnels[1]
-	check(absf(circuit.curvature(bend.start_distance + bend.tunnel_length / 2.0)) > 0.003,
-		"Bend tunnel follows a sweeping corner")
+	check(
+			absf(circuit.curvature(bend.start_distance + bend.tunnel_length / 2.0)) > 0.003,
+			"Bend tunnel follows a sweeping corner"
+	)
 	var sprint: TrackTunnel = tunnels[2]
 	var fast_samples := 0
 	var sample_count := 0
-	for distance in range(ceili(sprint.start_distance),
-			floori(sprint.start_distance + sprint.tunnel_length), 5):
+	for distance in range(
+			ceili(sprint.start_distance), floori(sprint.start_distance + sprint.tunnel_length), 5
+	):
 		sample_count += 1
 		if absf(circuit.curvature(distance)) < 0.006:
 			fast_samples += 1
 	check(float(fast_samples) / sample_count > 0.65, "Fast tunnel mostly follows gentler bends")
-
 
 
 func test_camera_clearance(game: Node) -> void:
@@ -394,23 +518,34 @@ func test_camera_clearance(game: Node) -> void:
 				player.speed = speed
 				player.update_pose(1.0 / 60.0)
 				game.camera._process(1.0 / 60.0)
-				var offset: float = game.circuit.route.curve.get_closest_offset(game.camera.global_position)
+				var offset: float = game.circuit.route.curve.get_closest_offset(
+						game.camera.global_position
+				)
 				var road: Transform3D = game.circuit.frame(offset)
 				var local_camera: Vector3 = road.affine_inverse() * game.camera.global_position
 				minimum_clearance = minf(minimum_clearance, local_camera.y)
 				for tunnel: TrackTunnel in game.circuit.get_node("Tunnels").get_children():
-					if offset < tunnel.start_distance or offset > tunnel.start_distance + tunnel.tunnel_length:
+					if (
+							offset < tunnel.start_distance
+							or offset > tunnel.start_distance + tunnel.tunnel_length
+					):
 						continue
 					# Leave a metre of clearance, including under the chamfered shoulders.
 					var ceiling := TrackTunnel.HEIGHT - maxf(0.0, absf(local_camera.x) - 12.0) * 0.8
-					tunnel_clearance = tunnel_clearance and absf(local_camera.x) < TrackTunnel.HALF_WIDTH - 1.0
+					tunnel_clearance = (
+							tunnel_clearance and absf(local_camera.x) < TrackTunnel.HALF_WIDTH - 1.0
+					)
 					tunnel_clearance = tunnel_clearance and local_camera.y < ceiling - 1.0
 	player.lateral_offset = 0.0
 	player.boost_active = false
-	check(minimum_clearance > 1.0,
-		"Chase camera clears road throughout normal and boosted laps in all lanes")
-	check(tunnel_clearance,
-		"Chase camera clears tunnel walls, shoulders, ceilings, and portals in all lanes")
+	check(
+			minimum_clearance > 1.0,
+			"Chase camera clears road throughout normal and boosted laps in all lanes"
+	)
+	check(
+			tunnel_clearance,
+			"Chase camera clears tunnel walls, shoulders, ceilings, and portals in all lanes"
+	)
 	print("Minimum camera clearance: %.2f m" % minimum_clearance)
 
 
@@ -421,7 +556,10 @@ func test_progress() -> void:
 	check(progress.completed_laps == 0, "No lap awarded for skip")
 	for step in range(1, 481):
 		check(progress.advance(step * 10.0, 0.1, step * 0.1), "Legitimate progress accepted")
-	check(progress.completed_laps == 3 and is_equal_approx(progress.finish_time, 48.0), "Valid checkpoint sequence finishes")
+	check(
+			progress.completed_laps == 3 and is_equal_approx(progress.finish_time, 48.0),
+			"Valid checkpoint sequence finishes"
+	)
 	check(not progress.advance(4810, 0.1, 48.1), "Finish time locked")
 	progress.reset()
 	check(progress.completed_laps == 0 and progress.next_checkpoint == 1, "Progress reset")
@@ -429,7 +567,9 @@ func test_progress() -> void:
 	check(not progress.advance(201.0, 0.1, 1.0), "Out-of-order checkpoint state rejected")
 
 
-func touch(input: DrivingInput, index: int, position: Vector2, pressed: bool, canceled: bool = false) -> void:
+func touch(
+		input: DrivingInput, index: int, position: Vector2, pressed: bool, canceled: bool = false
+) -> void:
 	var event := InputEventScreenTouch.new()
 	event.index = index
 	event.position = position
@@ -455,17 +595,34 @@ func test_touchpad() -> void:
 	check(input.read_controls(0.016) == Vector3.ZERO, "Pad center is neutral")
 	drag(input, 0, Vector2(230, 210))
 	check(input.read_controls(0.016) == Vector3.ZERO, "Each axis has a center dead zone")
-	var positions: Array[Vector2] = [Vector2(100, 220), Vector2(340, 220),
-		Vector2(220, 100), Vector2(220, 340), Vector2(100, 100),
-		Vector2(340, 100), Vector2(100, 340), Vector2(340, 340)]
-	var expected: Array[Vector3] = [Vector3(-1, 0, 0), Vector3(1, 0, 0),
-		Vector3(0, 1, 0), Vector3(0, -1, 0), Vector3(-1, 1, 0),
-		Vector3(1, 1, 0), Vector3(-1, -1, 0), Vector3(1, -1, 0)]
+	var positions: Array[Vector2] = [
+		Vector2(100, 220),
+		Vector2(340, 220),
+		Vector2(220, 100),
+		Vector2(220, 340),
+		Vector2(100, 100),
+		Vector2(340, 100),
+		Vector2(100, 340),
+		Vector2(340, 340),
+	]
+	var expected: Array[Vector3] = [
+		Vector3(-1, 0, 0),
+		Vector3(1, 0, 0),
+		Vector3(0, 1, 0),
+		Vector3(0, -1, 0),
+		Vector3(-1, 1, 0),
+		Vector3(1, 1, 0),
+		Vector3(-1, -1, 0),
+		Vector3(1, -1, 0),
+	]
 	for i in range(positions.size()):
 		drag(input, 0, positions[i])
 		check(input.read_controls(0.016).is_equal_approx(expected[i]), "Pad edge/diagonal %d" % i)
 	drag(input, 0, Vector2(286, 154))
-	check(input.read_controls(0.016).is_equal_approx(Vector3(0.5, 0.5, 0)), "Whole pad provides proportional independent axes")
+	check(
+			input.read_controls(0.016).is_equal_approx(Vector3(0.5, 0.5, 0)),
+			"Whole pad provides proportional independent axes"
+	)
 	drag(input, 0, Vector2(900, -100))
 	check(input.read_controls(0.016) == Vector3(1, 1, 0), "Captured drag clamps outside pad")
 	touch(input, 1, Vector2(120, 320), true)
@@ -479,7 +636,10 @@ func test_touchpad() -> void:
 	check(input.read_controls(0.016) == Vector3(0, 0, 1), "Driving release preserves Boost")
 	touch(input, 0, Vector2(110, 110), true)
 	touch(input, 2, Vector2.ZERO, false)
-	check(input.read_controls(0.016).z == 0 and input.read_controls(0.016).y > 0.9, "Boost release preserves driving")
+	check(
+			input.read_controls(0.016).z == 0 and input.read_controls(0.016).y > 0.9,
+			"Boost release preserves driving"
+	)
 	touch(input, 0, Vector2.ZERO, true, true)
 	check(input.read_controls(0.016) == Vector3.ZERO, "Canceled driving touch releases both axes")
 	touch(input, 2, Vector2(50, 450), true)
@@ -505,7 +665,10 @@ func test_touchpad() -> void:
 	mouse.position = Vector2(349, 101)
 	mouse.pressed = true
 	input._input(mouse)
-	check(input.read_controls(0.016).x > 0.9 and input.read_controls(0.016).y > 0.9, "Mouse drives the pad")
+	check(
+			input.read_controls(0.016).x > 0.9 and input.read_controls(0.016).y > 0.9,
+			"Mouse drives the pad"
+	)
 	mouse.pressed = false
 	input._input(mouse)
 	check(input.read_controls(0.016) == Vector3.ZERO, "Mouse release centers the pad")
@@ -529,11 +692,16 @@ func test_persistence() -> void:
 	var loaded := SaveData.new()
 	loaded.save_path = data.save_path
 	loaded.load_settings()
-	check(is_equal_approx(loaded.volume, 0.31) and is_equal_approx(loaded.sensitivity, 1.35), "Volume and sensitivity persist")
+	check(
+			is_equal_approx(loaded.volume, 0.31) and is_equal_approx(loaded.sensitivity, 1.35),
+			"Volume and sensitivity persist"
+	)
 	check(not loaded.camera_shake, "Camera shake persists")
 	check(loaded.best_race == 333.125 and loaded.best_lap == 109.5, "Records persist")
 	loaded.save_settings()
 	legacy_config.clear()
 	legacy_config.load(data.save_path)
-	check(not legacy_config.has_section_key("settings", "high_quality"),
-		"Saving settings removes the obsolete quality preference")
+	check(
+			not legacy_config.has_section_key("settings", "high_quality"),
+			"Saving settings removes the obsolete quality preference"
+	)

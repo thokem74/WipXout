@@ -42,6 +42,7 @@ func advance(new_distance: float, delta: float, race_time: float) -> bool:
 		next_checkpoint += 1
 		if next_checkpoint > checkpoint_count:
 			var crossing_time := race_time
+			# Interpolate within this step so lap times do not depend on frame boundaries.
 			if movement > 0.0:
 				crossing_time -= delta * (new_distance - target) / movement
 			last_lap = crossing_time - lap_started_at

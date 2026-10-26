@@ -1,16 +1,12 @@
 extends Node3D
 
-const RACER_SCENE := preload("res://scenes/racer.tscn")
-@export var pilot_profiles: Array[PilotProfile] = []
-
 enum State { MENU, COUNTDOWN, RACING, PAUSED, RESULTS, SETTINGS }
 
-@onready var circuit: Circuit = $Circuit
-@onready var camera: Camera3D = $ChaseCamera
-@onready var driving: DrivingInput = $DrivingInput
-@onready var ui: CanvasLayer = $GameUI
-@onready var audio: Node = $RaceAudio
-var data := SaveData.new()
+const RACER_SCENE := preload("res://scenes/racer.tscn")
+
+@export var pilot_profiles: Array[PilotProfile] = []
+
+var data: SaveData = SaveData.new()
 var racers: Array[Racer] = []
 var finish_order: Array[Racer] = []
 var state: State = State.MENU
@@ -24,6 +20,12 @@ var demo_mode: bool = false
 var standings: Array[Racer] = []
 var last_player_rank: int = 6
 var position_cue_cooldown: float = 0.0
+
+@onready var circuit: Circuit = $Circuit
+@onready var camera: Camera3D = $ChaseCamera
+@onready var driving: DrivingInput = $DrivingInput
+@onready var ui: CanvasLayer = $GameUI
+@onready var audio: Node = $RaceAudio
 
 
 func _ready() -> void:
@@ -55,12 +57,52 @@ func _ready() -> void:
 			racer.speed = 78.0
 
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		get_tree().quit()
+	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT and is_node_ready():
+		pause_race()
+		driving.clear()
+	elif what == NOTIFICATION_WM_GO_BACK_REQUEST and is_node_ready():
+		pause_race()
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		if state == State.PAUSED:
+			_on_action("resume")
+		else:
+			pause_race()
+
+
+func _physics_process(delta: float) -> void:
+	driving.set_regions(ui.get_pad_rect(), ui.get_boost_rect())
+	driving.enabled = state == State.RACING
+	var controls: Vector3 = driving.read_controls(delta)
+	if state == State.COUNTDOWN:
+		_update_countdown(delta)
+	elif state == State.RACING or state == State.RESULTS:
+		_update_race(delta, controls)
+
+	position_cue_cooldown = maxf(0.0, position_cue_cooldown - delta)
+	ui.update_effects(racers[0], delta, state == State.RACING)
+
+	# Keep standings and minimap updates at the existing HUD refresh cadence.
+	hud_timer += delta
+	if hud_timer > 0.08:
+		hud_timer = 0.0
+		_update_standings_hud()
+	audio.update_racers(racers, state == State.COUNTDOWN or state == State.RACING, delta)
+
+
 func start_race() -> void:
 	audio.stop_all()
 	elapsed = 0.0
 	finish_order.clear()
-	for i in range(racers.size()):
-		racers[i].reset(float(i / 2) * 14.0, -5.0 if i % 2 == 0 else 5.0)
+	for racer_index in range(racers.size()):
+		racers[racer_index].reset(
+				float(racer_index / 2) * 14.0, -5.0 if racer_index % 2 == 0 else 5.0
+		)
 	standings = RaceStandings.ordered(racers)
 	last_player_rank = standings.find(racers[0]) + 1
 	position_cue_cooldown = 0.0
@@ -77,65 +119,6 @@ func start_countdown() -> void:
 	countdown = 3.5
 	last_count = -1
 	ui.show_screen("")
-
-
-func _physics_process(delta: float) -> void:
-	driving.set_regions(ui.get_pad_rect(), ui.get_boost_rect())
-	driving.enabled = state == State.RACING
-	var controls := driving.read_controls(delta)
-	if state == State.COUNTDOWN:
-		countdown -= delta
-		var count := ceili(countdown)
-		if count != last_count and count > 0 and count <= 3:
-			audio.countdown_tick(count)
-			last_count = count
-		ui.set_countdown(str(mini(3, count)) if count > 0 else "GO")
-		if countdown <= 0:
-			state = State.RACING
-			driving.enabled = true
-			audio.cue("Go")
-	elif state == State.RACING or state == State.RESULTS:
-		elapsed += delta
-		for racer in racers:
-			var input := controls if racer.ai_index < 0 else racer.ai_input(elapsed)
-			if demo_mode and racer.ai_index < 0:
-				input = Vector3(clampf(-racer.lateral_offset * 0.2 - racer.lateral_velocity * 0.12, -1, 1), 1, 0)
-			racer.prepare_step(delta, input)
-		RacerContacts.resolve(racers)
-		for racer in racers:
-			racer.finish_step(delta, elapsed)
-			if (racer.wall_hit or racer.contact_hit) and racer.ai_index < 0:
-				audio.cue("Wall")
-			if racer == racers[0]:
-				update_player_feedback(racer)
-		var newly_finished: Array[Racer] = []
-		for racer in racers:
-			if racer.progress.finish_time >= 0 and racer.finished_rank == 0:
-				newly_finished.append(racer)
-		newly_finished.sort_custom(func(a: Racer, b: Racer) -> bool: return a.progress.finish_time < b.progress.finish_time)
-		for racer in newly_finished:
-			finish_order.append(racer)
-			racer.finished_rank = finish_order.size()
-		if racers[0].finished_rank > 0 and state == State.RACING:
-			complete_race()
-		if countdown > -0.7:
-			countdown -= delta
-			ui.set_countdown("GO" if countdown > -0.7 else "")
-	position_cue_cooldown = maxf(0.0, position_cue_cooldown - delta)
-	ui.update_effects(racers[0], delta, state == State.RACING)
-	hud_timer += delta
-	if hud_timer > 0.08:
-		hud_timer = 0.0
-		standings = RaceStandings.ordered(racers)
-		var rank := standings.find(racers[0]) + 1
-		if state == State.RACING and elapsed > 3.0 and rank < last_player_rank and position_cue_cooldown == 0.0:
-			audio.cue("PositionGain")
-			ui.show_race_message("POSITION +%d" % (last_player_rank - rank))
-			position_cue_cooldown = 2.0
-		last_player_rank = rank
-		ui.update_hud(racers[0], rank, elapsed)
-		ui.update_minimap(standings)
-	audio.update_racers(racers, state == State.COUNTDOWN or state == State.RACING, delta)
 
 
 func player_position() -> int:
@@ -184,6 +167,81 @@ func pause_race() -> void:
 	ui.show_screen("PauseMenu")
 
 
+func apply_settings() -> void:
+	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(data.volume, 0.0001)))
+	camera.shake_enabled = data.camera_shake
+	driving.sensitivity = data.sensitivity
+
+
+func _update_countdown(delta: float) -> void:
+	countdown -= delta
+	var count := ceili(countdown)
+	if count != last_count and count > 0 and count <= 3:
+		audio.countdown_tick(count)
+		last_count = count
+	ui.set_countdown(str(mini(3, count)) if count > 0 else "GO")
+	if countdown <= 0:
+		state = State.RACING
+		driving.enabled = true
+		audio.cue("Go")
+
+
+func _update_race(delta: float, controls: Vector3) -> void:
+	elapsed += delta
+	for racer in racers:
+		var racer_controls: Vector3 = controls if racer.ai_index < 0 else racer.ai_input(elapsed)
+		if demo_mode and racer.ai_index < 0:
+			racer_controls = Vector3(
+					clampf(-racer.lateral_offset * 0.2 - racer.lateral_velocity * 0.12, -1, 1), 1, 0
+			)
+		racer.prepare_step(delta, racer_controls)
+	# Resolve proposed movement before awarding checkpoints or triggering jumps.
+	RacerContacts.resolve(racers)
+	for racer in racers:
+		racer.finish_step(delta, elapsed)
+		if (racer.wall_hit or racer.contact_hit) and racer.ai_index < 0:
+			audio.cue("Wall")
+		if racer == racers[0]:
+			update_player_feedback(racer)
+	_assign_finish_ranks()
+	if racers[0].finished_rank > 0 and state == State.RACING:
+		complete_race()
+	if countdown > -0.7:
+		countdown -= delta
+		ui.set_countdown("GO" if countdown > -0.7 else "")
+
+
+func _assign_finish_ranks() -> void:
+	var newly_finished: Array[Racer] = []
+	for racer in racers:
+		if racer.progress.finish_time >= 0 and racer.finished_rank == 0:
+			newly_finished.append(racer)
+	newly_finished.sort_custom(
+			func(first: Racer, second: Racer) -> bool:
+				return first.progress.finish_time < second.progress.finish_time
+	)
+	for racer in newly_finished:
+		finish_order.append(racer)
+		racer.finished_rank = finish_order.size()
+
+
+func _update_standings_hud() -> void:
+	standings = RaceStandings.ordered(racers)
+	var rank := standings.find(racers[0]) + 1
+	if (
+			state == State.RACING
+			and elapsed > 3.0
+			and rank < last_player_rank
+			and position_cue_cooldown == 0.0
+	):
+		audio.cue("PositionGain")
+		ui.show_race_message("POSITION +%d" % (last_player_rank - rank))
+		position_cue_cooldown = 2.0
+	last_player_rank = rank
+	ui.update_hud(racers[0], rank, elapsed)
+	ui.update_minimap(standings)
+
+
 func _on_action(action: String) -> void:
 	match action:
 		"play", "restart":
@@ -222,27 +280,3 @@ func _on_setting(setting: String, value: Variant) -> void:
 	data.set(setting, value)
 	data.save_settings()
 	apply_settings()
-
-
-func apply_settings() -> void:
-	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(data.volume, 0.0001)))
-	camera.shake_enabled = data.camera_shake
-	driving.sensitivity = data.sensitivity
-
-
-func _unhandled_key_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_cancel"):
-		if state == State.PAUSED:
-			_on_action("resume")
-		else:
-			pause_race()
-
-
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_CLOSE_REQUEST:
-		get_tree().quit()
-	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT and is_node_ready():
-		pause_race()
-		driving.clear()
-	elif what == NOTIFICATION_WM_GO_BACK_REQUEST and is_node_ready():
-		pause_race()

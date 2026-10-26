@@ -7,8 +7,9 @@ signal pad_changed(position: Vector2, active: bool)
 const NO_POINTER: int = -2
 const MOUSE_POINTER: int = -1
 const DEAD_ZONE: float = 0.1
-const DRIVING_KEYS: Array[Key] = [KEY_W, KEY_A, KEY_S, KEY_D,
-	KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_SPACE]
+const DRIVING_KEYS: Array[Key] = [
+	KEY_W, KEY_A, KEY_S, KEY_D, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_SPACE,
+]
 
 var enabled: bool = false:
 	set(value):
@@ -89,7 +90,8 @@ func update_pad(position: Vector2) -> void:
 	if pad_rect.size.x <= 0 or pad_rect.size.y <= 0:
 		return
 	pad_position = ((position - pad_rect.get_center()) / (pad_rect.size * 0.5)).clamp(
-		Vector2(-1, -1), Vector2(1, 1))
+			Vector2(-1, -1), Vector2(1, 1)
+	)
 	pad_changed.emit(pad_position, true)
 
 
@@ -107,8 +109,14 @@ func read_controls(_delta: float) -> Vector3:
 		keyboard_blocked = held
 	var keyboard := Vector3.ZERO
 	if not keyboard_blocked:
-		keyboard.x = float(Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT)) - float(Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT))
-		keyboard.y = float(Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)) - float(Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN))
+		keyboard.x = (
+				float(Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT))
+				- float(Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT))
+		)
+		keyboard.y = (
+				float(Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP))
+				- float(Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN))
+		)
 		keyboard.z = float(Input.is_physical_key_pressed(KEY_SPACE))
 	var steering := keyboard.x
 	var throttle := keyboard.y

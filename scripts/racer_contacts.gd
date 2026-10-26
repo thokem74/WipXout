@@ -25,22 +25,36 @@ static func resolve_pair(first: Racer, second: Racer) -> bool:
 		return false
 	var first_box := first.collision_shape.shape as BoxShape3D
 	var second_box := second.collision_shape.shape as BoxShape3D
-	var separation := Vector3((first_box.size.x + second_box.size.x) * 0.5,
-		(first_box.size.z + second_box.size.z) * 0.5,
-		(first_box.size.y + second_box.size.y) * 0.5)
-	var start := Vector3(second.previous_lateral_offset - first.previous_lateral_offset,
-		wrapf(second.previous_track_distance - first.previous_track_distance,
-			-first.circuit.length * 0.5, first.circuit.length * 0.5),
-		contact_height(second, true) - contact_height(first, true))
+	var separation := Vector3(
+			(first_box.size.x + second_box.size.x) * 0.5,
+			(first_box.size.z + second_box.size.z) * 0.5,
+			(first_box.size.y + second_box.size.y) * 0.5
+	)
+	var start := Vector3(
+			second.previous_lateral_offset - first.previous_lateral_offset,
+			wrapf(
+					second.previous_track_distance - first.previous_track_distance,
+					-first.circuit.length * 0.5,
+					first.circuit.length * 0.5
+			),
+			contact_height(second, true) - contact_height(first, true)
+	)
 	# Local +Z points backward, so a negative hull offset is ahead of the ship origin.
 	start.y += first.collision_shape.position.z - second.collision_shape.position.z
 	var movement := Vector3(
-		(second.lateral_offset - second.previous_lateral_offset)
-			- (first.lateral_offset - first.previous_lateral_offset),
-		(second.track_distance - second.previous_track_distance)
-			- (first.track_distance - first.previous_track_distance),
-		(contact_height(second, false) - contact_height(second, true))
-			- (contact_height(first, false) - contact_height(first, true)))
+			(
+					(second.lateral_offset - second.previous_lateral_offset)
+					- (first.lateral_offset - first.previous_lateral_offset)
+			),
+			(
+					(second.track_distance - second.previous_track_distance)
+					- (first.track_distance - first.previous_track_distance)
+			),
+			(
+					(contact_height(second, false) - contact_height(second, true))
+					- (contact_height(first, false) - contact_height(first, true))
+			)
+	)
 	var axis := swept_axis(start, movement, separation)
 	if axis < 0:
 		return false
@@ -50,8 +64,14 @@ static func resolve_pair(first: Racer, second: Racer) -> bool:
 		var rear := first if start.y >= 0.0 else second
 		var front := second if start.y >= 0.0 else first
 		var gap := separation.y + CLEARANCE
-		var front_distance := rear.track_distance + wrapf(front.track_distance - rear.track_distance,
-			-first.circuit.length * 0.5, first.circuit.length * 0.5)
+		var front_distance := (
+				rear.track_distance
+				+ wrapf(
+						front.track_distance - rear.track_distance,
+						-first.circuit.length * 0.5,
+						first.circuit.length * 0.5
+				)
+		)
 		front_distance += rear.collision_shape.position.z - front.collision_shape.position.z
 		var blocked_distance := front_distance - gap
 		if blocked_distance >= rear.previous_track_distance:
@@ -98,7 +118,9 @@ static func swept_axis(start: Vector3, movement: Vector3, size: Vector3) -> int:
 	return hit_axis
 
 
-static func separate_laterally(first: Racer, second: Racer, initial_gap: float, width: float) -> bool:
+static func separate_laterally(
+		first: Racer, second: Racer, initial_gap: float, width: float
+) -> bool:
 	var direction := 1.0 if initial_gap >= 0.0 else -1.0
 	var overlap := width - direction * (second.lateral_offset - first.lateral_offset)
 	if overlap <= 0.0:
@@ -106,15 +128,21 @@ static func separate_laterally(first: Racer, second: Racer, initial_gap: float, 
 	var first_limit := first.lateral_limit()
 	var second_limit := second.lateral_limit()
 	var first_before := first.lateral_offset
-	first.lateral_offset = clampf(first_before - direction * overlap * 0.5, -first_limit, first_limit)
+	first.lateral_offset = clampf(
+			first_before - direction * overlap * 0.5, -first_limit, first_limit
+	)
 	var first_shift := absf(first.lateral_offset - first_before)
 	var second_before := second.lateral_offset
-	second.lateral_offset = clampf(second_before + direction * (overlap - first_shift),
-		-second_limit, second_limit)
+	second.lateral_offset = clampf(
+			second_before + direction * (overlap - first_shift), -second_limit, second_limit
+	)
 	var second_shift := absf(second.lateral_offset - second_before)
 	# If one ship meets the rail, give the remaining separation to the other ship.
-	first.lateral_offset = clampf(first.lateral_offset
-		- direction * maxf(0.0, overlap - first_shift - second_shift), -first_limit, first_limit)
+	first.lateral_offset = clampf(
+			first.lateral_offset - direction * maxf(0.0, overlap - first_shift - second_shift),
+			-first_limit,
+			first_limit
+	)
 	if first.lateral_velocity * direction > 0.0:
 		first.lateral_velocity *= -0.2
 	if second.lateral_velocity * direction < 0.0:

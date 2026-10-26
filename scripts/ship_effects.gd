@@ -26,7 +26,10 @@ func update_racer(racer: Racer, delta: float) -> void:
 	$Flames.scale.z = 0.35 + racer.engine_load * 0.55 + (1.3 if racer.boost_active else 0.0)
 	$Trail.emitting = power > 0.35
 	$Trail.amount_ratio = 1.0 if racer.boost_active else 0.45
-	if (racer.wall_hit or racer.contact_hit or racer.took_off or racer.landed) and burst_cooldown == 0.0:
+	if (
+			(racer.wall_hit or racer.contact_hit or racer.took_off or racer.landed)
+			and burst_cooldown == 0.0
+	):
 		$Burst.restart()
 		$Burst.emitting = true
 		burst_cooldown = 0.25

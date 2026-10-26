@@ -1,7 +1,8 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 [ext_resource type="Script" path="res://scripts/racer.gd" id="1"]
 [ext_resource type="Resource" path="res://resources/default_tuning.tres" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/ship_visual.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/ship_effects.tscn" id="4"]
 [sub_resource type="BoxShape3D" id="RacerHull"]
 size = Vector3(8.4, 1.6, 6.8)
 [node name="Racer" type="Node3D"]
@@ -16,3 +17,5 @@ monitorable = false
 position = Vector3(0, 0.25, -0.8)
 shape = SubResource("RacerHull")
 [node name="Wireframe" parent="." instance=ExtResource("3")]
+
+[node name="Effects" parent="." instance=ExtResource("4")]

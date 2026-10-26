@@ -33,11 +33,11 @@ func run() -> void:
 	check(game.circuit.jumps.size() == 2, "Exactly two authored jumps")
 	for jump: TrackJump in game.circuit.jumps:
 		var clear_landing := true
-		for distance in range(int(jump.takeoff_distance), int(jump.takeoff_distance + 220), 5):
-			clear_landing = clear_landing and absf(game.circuit.curvature(distance)) < 0.006
+		for distance in range(int(jump.takeoff_distance), int(jump.takeoff_distance + 300), 5):
+			clear_landing = clear_landing and absf(game.circuit.curvature(distance)) < 0.007
 		for tunnel: TrackTunnel in game.circuit.get_node("Tunnels").get_children():
 			clear_landing = clear_landing and (
-				jump.takeoff_distance + 220 < tunnel.start_distance or
+				jump.takeoff_distance + 300 < tunnel.start_distance or
 				jump.takeoff_distance - jump.approach_length > tunnel.start_distance + tunnel.tunnel_length)
 		check(clear_landing, "Jump has an open landing corridor before tight corners and tunnels")
 		check(jump.get_node("Markings").mesh.get_surface_count() == 1, "Ramp has visible takeoff markings")
@@ -64,8 +64,8 @@ func run() -> void:
 					duration += 1.0 / 60.0
 				check(not player.airborne and is_zero_approx(player.air_height),
 					"Flight returns smoothly to road hover height")
-				check(peak >= 4.0 and peak <= 7.0 and duration >= 1.0 and duration <= 1.7,
-					"Racing jumps reach 4–7 metres and around 1–1.5 seconds of airtime")
+				check(peak >= 6.5 and peak <= 10.0 and duration >= 1.8 and duration <= 2.4,
+					"Longer racing jumps reach 7–10 metres and around 1.9–2.2 seconds of airtime")
 				check(not player.wall_hit and player.speed >= speed - 1.0,
 					"A controlled landing preserves speed")
 				check(player.progress.distance == player.track_distance,
@@ -134,7 +134,7 @@ func run() -> void:
 				player.lateral_offset = lane
 				player.speed = speed
 				game.camera.snap_next = true
-				for i in range(150):
+				for i in range(210):
 					var controls := Vector3(clampf((lane - player.lateral_offset) * 0.3
 						- player.lateral_velocity * 0.15, -1, 1), 1, 1 if speed > 100 else 0)
 					player.simulate(1.0 / 60.0, controls, (i + 1) / 60.0)

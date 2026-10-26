@@ -1,18 +1,22 @@
 # Neon Vector Racing
 
 A single-player anti-gravity arcade racer built with Godot 4.7.2 and GDScript.
-Race two AI pilots through a neon wireframe city over three laps. The project uses
+Race five AI pilots through a neon wireframe city over three laps. The project uses
 Godot's **Mobile** renderer on desktop and Android.
 
-The 9.51 km circuit links short straights, chicanes, flowing S-bends, and tighter
-95 m-radius corners. Near-straight sections stay below 180 m (the longest measures
-approximately 120 m). Four long climbs and descents span 130 m of elevation;
-each sustained slope runs approximately 1,030 m, with a maximum grade of 18.6%.
-Three enclosed neon tunnels are 650, 750, and 700 m long. Two marked ramps launch
-ships above continuous road, with broad landing corridors before the next tight
-corner. Magenta curve arrows face approaching racers, point toward the bend,
-and stay steadily illuminated. Three laps take roughly seven minutes in automated
-runs.
+The 9.66 km circuit alternates true straights and tight 95 m-radius corners,
+with direct changes in cornering demand. About two thirds is level and one third
+is uphill/downhill (measured 66.5% / 33.5%). Four climb/descent pairs have about
+10% gradient, 40 m of elevation range, and hard transitions to level road.
+Near-straight sections stay below 180 m. Three enclosed neon tunnels are 650,
+750, and 700 m long. Two marked ramps launch ships above continuous road, with
+broad landing corridors. Magenta curve arrows face approaching racers and stay
+steadily illuminated. Six-racer automated races take roughly eight minutes.
+
+The six pilots are **VECTOR** (player, magenta), **ION** (cyan), **EMBER** (orange),
+**VENOM** (lime), **NOVA** (violet), and **SOL** (gold). Their colors match their
+hulls, exhaust, trails, and minimap markers. AI cruise speeds are 84, 86, 82, 85,
+and 87 m/s respectively. Three staggered rows of two form the starting grid.
 
 ## Run
 
@@ -49,10 +53,25 @@ below it shows available charge. Leaving the Boost button releases it. Braking
 prevents boost activation. Charge recovers after a short cooldown.
 
 The two orange **JUMP** ramps launch automatically above 25 m/s. At normal and
-boost speed, airtime is roughly 1.3–1.5 seconds and peak height is 5–7 m above
+boost speed, airtime is roughly 1.9–2.2 seconds and peak height is 7–10 m above
 the road. Steering acceleration is halved in flight; throttle, brake, and Boost
 continue working. Slow ships roll over safely. Landings preserve speed, and
 continuous road remains beneath each jump. Pausing freezes the flight arc.
+
+The fixed overhead **minimap below the lap display** shows the entire course.
+Colored dots mark earned track positions; the numbered colored badges show live
+race ranks **1–6**, rather than permanent racer IDs. Short leader lines keep the
+numbers readable when racers cluster, while dots stay on their real track positions.
+A white outline identifies the player. Rankings account for laps and finish order;
+the map wraps positions around the course. It does not capture driving touches.
+
+Arcade acceleration and braking are 32 and 65 m/s². Boost recharges at 0.14 per
+second after a 1.2-second cooldown; normal and boost limits remain 88 and 116 m/s.
+Boost strengthens the exhaust, adds edge streaks, and widens the camera FOV by up
+to four extra degrees. Brief colored bursts mark takeoff, landing, and collisions.
+New wind, boost-engagement, jump, landing, and position-gain sounds reinforce these
+events. Engine/wind reverberation fades in through tunnels. Camera impulses honor
+the existing Camera shake setting; pause, menus, restart, and finish clear effects.
 
 Desktop: **WASD or arrow keys** steer, accelerate, and brake; **Space** boosts;
 **Escape** pauses/resumes. You can also click and drag the pad with the mouse and
@@ -78,7 +97,7 @@ save key is retained.
 - `resources/city_circuit.tres` is the authored closed Curve3D. Track mesh, grid,
   rails, racer frames, and checkpoints use the same path. Reload the scene after
   editing the curve to regenerate its geometry. `python3 tools/generate_circuit.py`
-  rebuilds the authored route from its rounded city-block layout and smooth hill
+  rebuilds the authored route from its rounded city-block layout and piecewise linear ten-percent hill
   profile; this overwrites manual Curve3D edits. Runtime uses the saved resource,
   with no Python dependency.
 - `scenes/track_tunnel.tscn` contains the reusable opaque shell and neon outline
@@ -95,6 +114,17 @@ save key is retained.
   tuning resource. Jump crossings are committed after racer contacts constrain
   movement, so a blocked ship cannot launch early. Both AI pilots use the same
   flight behavior and look ahead across upcoming bends before braking.
+- The six `PilotProfile` resources in `scenes/main.tscn` own names, colors, and
+  cruise speeds. `scripts/race_standings.gd` provides the common ordering for the
+  HUD, minimap, and position-gain feedback, using validated unwrapped progress and
+  stable roster order for ties. The original two-entry AI tuning vector is removed.
+- `scenes/race_minimap.tscn` authors the panel and six rank labels. Its script caches
+  a 257-point course outline and projects dots at the HUD's existing 0.08-second
+  refresh cadence. The 240 × 210 panel sits 12 logical pixels below the lap display.
+- `scenes/ship_effects.tscn` owns two low-poly thrusters, a 24-particle trail and a
+  reused 16-particle burst per ship. Effects never spawn nodes during racing.
+  `resources/race_feedback.gdshader` draws boost/impact feedback at screen edges;
+  the minimap and driving controls draw above it.
 - `scripts/racer.gd` implements spline progress, lateral drift, analytical wall
   boundaries, hover, boost, recovery, and AI. `scripts/race_progress.gd` validates
   forward movement and ordered checkpoints before awarding laps.
@@ -121,8 +151,10 @@ save key is retained.
   in 3D. Countdown, GO, wall impacts, and finish use mechanical racing cues.
   Engines idle during countdown; pause, restart, menus, and exit stop playback.
   The player's engine is non-positional and stays prominent on phone speakers;
-  nearby rivals retain 3D positioning. Countdown/GO briefly duck the engines,
-  and the Master bus limits peaks while preserving the volume setting.
+  all five rivals retain 3D positioning and fade out between 90 and 120 m, stopping
+  distant playback with a small restart hysteresis. Countdown/GO briefly duck the engines,
+  and new jump/position signals duck them slightly. The RaceEngines bus provides
+  smooth tunnel reverb, and the Master limiter preserves headroom and volume control.
 
 ## Visual quality
 
@@ -159,6 +191,7 @@ godot --headless --path . --editor --import --quit
 godot --headless --path . --script tests/test_runner.gd
 godot --headless --path . --script tests/racer_contacts_runner.gd
 godot --headless --path . --script tests/jumps_runner.gd
+godot --headless --path . --script tests/arcade_runner.gd
 godot --headless --path . --script tests/desktop_input_runner.gd
 godot --headless --audio-driver PulseAudio --path . --script tests/audio_output_runner.gd
 godot --path . --script tests/visual_runner.gd
@@ -170,7 +203,7 @@ writes screenshots to `/tmp/neon-*.png`, including climbs, descents, crests, dip
 S-bends, every tunnel entrance/interior/exit, and both jumps during approach,
 takeoff, flight, and landing at both aspect ratios in the fixed High/Bloom mode.
 
-Tests cover complete three-lap races and both AI finishes, checkpoint rejection,
+Tests cover complete three-lap races and all five AI finishes, checkpoint rejection,
 wall recovery, boost, persistence, keyboard input, pad edges and all diagonals,
 proportional input, independent touch release, cancellation, extra fingers,
 mouse interaction, focus loss, and pause/restart resets. Layout checks and rendered
@@ -178,18 +211,24 @@ inspection cover 1280×720 and 1600×720. Track checks cover
 frame continuity, short straights, sustained slopes, elevation, grade, corner radii,
 section clearance, tunnel placement, and camera clearance in the center and both
 outer lanes over full normal-speed and boost-speed laps.
-On 2026-10-26, the harder circuit passed **616 automated checks**, **28 contact
-checks**, **85 jump checks**, and **seven keyboard checks**, with rendered inspection
-at both aspect ratios using the Mobile renderer. Every racer takes both jumps on
-all three laps. A simulated race takes **6:59.431**; the AI racers finish in
-**6:51.275** and **6:59.333**. These are gameplay timings,
-not device performance measurements.
+On 2026-10-26, the final circuit passed **622 main checks**, **43 arcade checks**,
+**28 contact checks**, **85 jump checks**, and **seven keyboard checks**. All six
+racers finish three laps and take both jumps on every lap. Rendered inspection
+covers both aspect ratios, all six colors, clustered and spread-out map markers,
+boost, impact, both jumps, hills, and tunnels using the Mobile renderer. The
+unboosted demo player finishes in **8:02.731**; ION and EMBER finish in **7:26.701**
+and **7:35.107**. These are gameplay timings, not device performance measurements.
 
-The harder-circuit 0.1.1 debug APK was built successfully. The connected phone
-disconnected before installation, so the new jumps and extended tunnels still
-need on-device verification. Earlier testing of the previous circuit on a Samsung
-SM-A176B (Mali-G68, Vulkan Mobile) checked touch acceleration and a tunnel interior;
-its frame measurements do not validate this harder layout. The broader audio/UI validation below was performed
+The real PulseAudio mixer runner passed **seven checks**, including six nearby
+engines, boost, wind, simultaneous cues, and tunnel entry/exit. Combined peak was
+0.583 (about -4.7 dBFS), below the -1 dB limiter ceiling. These samples verify output
+and mix headroom, rather than phone-speaker loudness.
+
+The Android debug APK builds successfully. The connected Samsung SM-A176B
+(Mali-G68, Vulkan Mobile) disconnected during the baseline comparison, so this
+six-racer build still needs installation and device verification. Prior device
+measurements apply to earlier builds and do not validate these effects or this layout.
+The broader audio/UI validation below was performed
 on 2026-10-25 with Godot 4.7.2. Tests cover fixed HDR/MSAA/bloom
 configuration and compatibility with older saves containing a Low preference.
 Audio checks cover full loop boundaries, the shared VECTOR/ION profile, throttle load,
@@ -218,7 +257,7 @@ establish sustained thermal performance.
 
 ## Limitations
 
-One circuit and one ship geometry in three colors; no multiplayer, weapons, or
+One circuit and one ship geometry in six colors; no multiplayer, weapons, or
 full vehicle physics. Flight stays within the spline corridor, with a ballistic
 road-relative height rather than free-flight rigid-body simulation. Best times
 are local. Physical comfort and sustained Android performance require hands-on

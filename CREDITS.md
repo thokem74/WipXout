@@ -27,14 +27,18 @@ them, applies soft saturation, and crossfades loop boundaries. It validates
 headroom, loop seams, and distinct outputs, then writes mono 44.1 kHz, 16-bit WAVs
 to `assets/audio`. Source recordings are never overwritten.
 
-- **VECTOR / player and ION:** the same lower mechanical texture with uneven
+- **VECTOR / player, ION, VENOM, and SOL:** the same lower mechanical texture with uneven
   rhythmic engine pulses, using matching idle and loaded recordings.
-- **EMBER:** turbine recordings, a rotary layer, and a restrained whine.
+- **EMBER and NOVA:** turbine recordings, a rotary layer, and a restrained whine.
 - **Boost:** processed thruster and racing-engine roar.
+- **Wind / boost engagement / takeoff / landing / position gain:** filtered and
+  layered retained thruster, turbine, low-engine, metal, and rotary recordings;
+  the position cue adds a short two-tone signal. No new external sources are used.
 - **Countdown / GO / wall / finish:** mechanical klaxon pulses, launch blast,
   metallic collision, and a double racing horn.
 
 The optional stereo preview is `builds/pod-race-audio-preview.wav`:
 0–7 seconds VECTOR, 7–14 ION, 14–21 EMBER, 21–25 a rival pass-by,
-and 25–31 the countdown, launch, wall, and finish cues. Each engine segment
+25–31 the countdown, launch, wall, and finish cues, and 31–36 the new boost,
+takeoff, landing, position-gain, and wind sounds. Each engine segment
 includes idle, acceleration, coasting, braking rundown, and boost.

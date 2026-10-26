@@ -4,7 +4,7 @@ extends Node3D
 ## The road stays continuous: this low ramp launches ships into a forgiving arc.
 
 @export var takeoff_distance: float = 1250.0
-@export_range(0.1, 0.3) var launch_strength: float = 0.18
+@export_range(0.1, 0.3) var launch_strength: float = 0.17
 @export var approach_length: float = 45.0
 @export var landing_length: float = 65.0
 @export var ramp_height: float = 1.4

@@ -1,11 +1,14 @@
 class_name Racer
 extends Node3D
 
+@export var profile: PilotProfile
 @export var tuning: RaceTuning
 @export var racer_name: String = "VECTOR"
 @export var ai_index: int = -1
 @export var neon_color: Color = Color(1, 0.015, 0.8)
 
+var took_off: bool = false
+var landed: bool = false
 var airborne: bool = false
 var air_height: float = 0.0
 var vertical_velocity: float = 0.0
@@ -31,6 +34,7 @@ var previous_lateral_offset: float = 0.0
 var contact_hit: bool = false
 var contact_cooldown: float = 0.0
 
+@onready var effects: Node3D = $Effects
 @onready var collision_shape: CollisionShape3D = $CollisionHull/CollisionShape3D
 
 
@@ -43,6 +47,8 @@ func setup(track: Circuit, start_distance: float, lane: float) -> void:
 
 func reset(start_distance: float = 0.0, lane: float = 0.0) -> void:
 	clear_flight()
+	effects.stop()
+	effects.set_color(neon_color)
 	track_distance = start_distance
 	lateral_offset = lane
 	lateral_velocity = 0.0
@@ -70,8 +76,8 @@ func ai_input(time: float) -> Vector3:
 	for sample in range(4):
 		var lookahead := float(sample) * 40.0
 		bend = maxf(bend, absf(circuit.curvature(track_distance + lookahead)))
-	var target_speed: float = tuning.ai_speeds[ai_index]
-	target_speed *= clampf(1.0 - bend * (25.0 + ai_index * 5.0), 0.69, 1.0)
+	var target_speed: float = profile.cruise_speed
+	target_speed *= clampf(1.0 - bend * (25.0 + min(ai_index, 2) * 5.0), 0.69, 1.0)
 	var lane_amplitude := 2.0 if airborne else 5.0
 	var desired_lane := sin(time * (0.22 + ai_index * 0.04) + ai_index * 2.0) * lane_amplitude
 	var steering := clampf((desired_lane - lateral_offset) * 0.25 - lateral_velocity * 0.12, -1, 1)
@@ -88,6 +94,8 @@ func simulate(delta: float, controls: Vector3, race_time: float) -> void:
 
 func prepare_step(delta: float, controls: Vector3) -> void:
 	# Keep the start of the sweep; contacts are resolved before committing progress.
+	took_off = false
+	landed = false
 	previous_track_distance = track_distance
 	previous_lateral_offset = lateral_offset
 	previous_air_height = air_height
@@ -161,9 +169,12 @@ func finish_step(delta: float, race_time: float) -> void:
 	else:
 		try_takeoff(delta)
 	update_pose(delta)
+	effects.update_racer(self, delta)
 
 
 func clear_flight() -> void:
+	took_off = false
+	landed = false
 	airborne = false
 	air_height = 0.0
 	previous_air_height = 0.0
@@ -177,6 +188,7 @@ func advance_flight(delta: float) -> void:
 	air_height += vertical_velocity * delta - 0.5 * tuning.jump_gravity * delta * delta
 	vertical_velocity -= tuning.jump_gravity * delta
 	if air_height <= 0.0 and vertical_velocity < 0.0:
+		landed = true
 		# Landing preserves forward speed and progress; the road is always beneath us.
 		air_height = 0.0
 		vertical_velocity = 0.0
@@ -192,6 +204,7 @@ func try_takeoff(delta: float) -> void:
 		var lip := jump.takeoff_distance + lap * circuit.length
 		if track_distance < lip:
 			continue
+		took_off = true
 		airborne = true
 		air_height = 0.0
 		vertical_velocity = minf(speed * jump.launch_strength, tuning.maximum_launch_speed)

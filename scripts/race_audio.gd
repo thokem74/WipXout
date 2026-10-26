@@ -6,15 +6,18 @@ extends Node
 		if not enabled and is_node_ready():
 			stop_all()
 
-var _loads: Array[float] = [0.0, 0.0, 0.0]
+var _loads: Array[float] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+var _cue_cooldowns: Dictionary = {}
+var _was_boosting: bool = false
+var tunnel_wet: float = 0.0
 var _signal_duck_db: float = 0.0
 
 @onready var _idle_engines: Array[Node] = [
-	$EngineIdle, $RivalOneIdle, $RivalTwoIdle]
+	$EngineIdle, $RivalOneIdle, $RivalTwoIdle, $RivalThreeIdle, $RivalFourIdle, $RivalFiveIdle]
 @onready var _loaded_engines: Array[Node] = [
-	$EngineLoad, $RivalOneLoad, $RivalTwoLoad]
+	$EngineLoad, $RivalOneLoad, $RivalTwoLoad, $RivalThreeLoad, $RivalFourLoad, $RivalFiveLoad]
 @onready var _boost: AudioStreamPlayer = $Boost
-@onready var _cues: Array[AudioStreamPlayer] = [$Countdown, $Go, $Wall, $Finish]
+@onready var _cues: Array[AudioStreamPlayer] = [$Countdown, $Go, $Wall, $Finish, $BoostEngage, $Takeoff, $Landing, $PositionGain]
 
 
 func _ready() -> void:
@@ -22,6 +25,7 @@ func _ready() -> void:
 		_idle_engines[index].stream = make_loop(_idle_engines[index].stream)
 		_loaded_engines[index].stream = make_loop(_loaded_engines[index].stream)
 	_boost.stream = make_loop(_boost.stream)
+	$Wind.stream = make_loop($Wind.stream)
 
 
 func _exit_tree() -> void:
@@ -44,18 +48,29 @@ func update_racers(racers: Array[Racer], engines_active: bool, delta: float) -> 
 	if not engines_active:
 		stop_engines()
 		return
+	for key: String in _cue_cooldowns:
+		_cue_cooldowns[key] = maxf(0.0, _cue_cooldowns[key] - delta)
 	var response := 1.0 - exp(-delta * 8.0)
-	var duck_target := -6.0 if _cues[0].playing or _cues[1].playing else 0.0
+	var duck_target := 0.0
+	if $Countdown.playing or $Go.playing:
+		duck_target = -6.0
+	elif $Takeoff.playing or $Landing.playing or $PositionGain.playing:
+		duck_target = -3.0
 	_signal_duck_db = lerpf(_signal_duck_db, duck_target, response)
 	for index in range(_idle_engines.size()):
 		var racer := racers[index]
 		var idle := _idle_engines[index]
 		var loaded := _loaded_engines[index]
+		var distance := racer.global_position.distance_to(racers[0].global_position)
+		if index > 0 and (distance > 120.0 or (not idle.playing and distance > 110.0)):
+			idle.stop()
+			loaded.stop()
+			continue
 		_loads[index] = lerpf(_loads[index], racer.engine_load, response)
 		var speed_ratio := clampf(racer.speed / racer.tuning.top_speed, 0.0, 1.3)
 		var pitch := 0.68 + speed_ratio * 0.65 + _loads[index] * 0.18
 		if index > 0:
-			pitch *= passby_pitch(racer, racers[0])
+			pitch *= passby_pitch(racer, racers[0]) * (1.0 + maxf(0, index - 2) * 0.025)
 			idle.global_position = racer.global_position
 			loaded.global_position = racer.global_position
 		if not idle.playing:
@@ -68,11 +83,29 @@ func update_racers(racers: Array[Racer], engines_active: bool, delta: float) -> 
 		# Equal-power blending avoids a dip halfway between idle and loaded loops.
 		# Keep the player's engine directly audible, independent of the listener.
 		# Reserve positional attenuation for opponents and room for race signals.
-		var volume := (-4.0 if index == 0 else -16.0) + speed_ratio * 2.0 + _signal_duck_db
+		var volume := (-4.0 if index == 0 else -20.0) + speed_ratio * 2.0 + _signal_duck_db
+		if index > 0:
+			volume += linear_to_db(maxf(0.001, 1.0 - smoothstep(90.0, 120.0, distance)))
 		var idle_reduction := -5.0 if index == 0 else -2.0
 		idle.volume_db = volume + idle_reduction + linear_to_db(maxf(0.001, sqrt(1.0 - _loads[index])))
 		loaded.volume_db = volume + linear_to_db(maxf(0.001, sqrt(_loads[index])))
 	var player := racers[0]
+	if player.boost_active and not _was_boosting:
+		cue("BoostEngage")
+	_was_boosting = player.boost_active
+	var wind_target := -60.0 if player.speed < 20.0 else -28.0 + minf(player.speed / 116.0, 1.0) * 7.0
+	$Wind.volume_db = lerpf($Wind.volume_db, wind_target + _signal_duck_db, response)
+	if player.speed > 20.0 and not $Wind.playing:
+		$Wind.play()
+	elif player.speed < 10.0:
+		$Wind.stop()
+	var inside := false
+	for tunnel: TrackTunnel in player.circuit.get_node("Tunnels").get_children():
+		var distance := fposmod(player.track_distance, player.circuit.length)
+		inside = inside or (distance >= tunnel.start_distance and distance <= tunnel.start_distance + tunnel.tunnel_length)
+	tunnel_wet = lerpf(tunnel_wet, 0.18 if inside else 0.0, response)
+	var reverb := AudioServer.get_bus_effect(AudioServer.get_bus_index("RaceEngines"), 0) as AudioEffectReverb
+	reverb.wet = tunnel_wet
 	if player.boost_active and not _boost.playing:
 		_boost.play()
 	var boost_volume := -12.0 if player.boost_active else -60.0
@@ -101,12 +134,20 @@ func countdown_tick(count: int) -> void:
 
 
 func cue(name: String) -> void:
-	if enabled:
+	if enabled and float(_cue_cooldowns.get(name, 0.0)) <= 0.0:
 		get_node(name).play()
+		_cue_cooldowns[name] = 2.0 if name == "PositionGain" else 0.25
 
 
 func stop_engines() -> void:
 	_signal_duck_db = 0.0
+	_was_boosting = false
+	tunnel_wet = 0.0
+	var bus := AudioServer.get_bus_index("RaceEngines")
+	if bus >= 0:
+		(AudioServer.get_bus_effect(bus, 0) as AudioEffectReverb).wet = 0.0
+	$Wind.stop()
+	$Wind.volume_db = -60.0
 	for index in range(_idle_engines.size()):
 		_idle_engines[index].stop()
 		_loaded_engines[index].stop()
@@ -118,6 +159,7 @@ func stop_engines() -> void:
 
 
 func stop_all() -> void:
+	_cue_cooldowns.clear()
 	stop_engines()
 	for player in _cues:
 		player.stop()

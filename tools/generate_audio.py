@@ -154,6 +154,26 @@ def build_sounds():
                 value *= min(1.0, gate_distance / 0.008)
             result.append(value * envelope(t, duration))
         sounds[name] = normalize(result, 0.62)
+    wind = bandpass(thruster, 1500, 6500)
+    sounds["wind"] = normalize(seamless([
+        sample_loop(wind, i * 0.73) for i in range(LOOP_FRAMES)]), 0.4)
+    for name, duration in (("boost_engage", 0.24), ("takeoff", 0.28),
+                           ("landing", 0.3), ("position_gain", 0.32)):
+        result = []
+        for i in range(round(duration * RATE)):
+            t = i / RATE
+            if name == "boost_engage":
+                value = sample_loop(thruster, i * (1.4 + t * 3)) + 0.2 * sample_loop(metal, i)
+            elif name == "takeoff":
+                value = sample_loop(turbine, i * (0.8 + t * 4)) + 0.4 * sample_loop(thruster, i)
+            elif name == "landing":
+                value = sample_loop(low, i * 0.65) + 0.5 * sample_loop(metal, i * 0.6)
+            else:
+                frequency = 660 if t < 0.14 else 880
+                value = 0.6 * math.sin(TAU * frequency * t) + 0.25 * sample_loop(rotary, i * 1.5)
+                value *= min(1.0, abs(t - 0.14) / 0.006)
+            result.append(value * envelope(t, duration))
+        sounds[name] = normalize(result, 0.5)
     return sounds
 
 
@@ -162,7 +182,7 @@ def validate(sounds):
     for name, values in sounds.items():
         rms = math.sqrt(sum(value * value for value in values) / len(values))
         assert rms > 0.02, f"{name}: too quiet"
-        if name.startswith("engine_") or name == "boost":
+        if name.startswith("engine_") or name in ("boost", "wind"):
             largest_step = max(abs(b - a) for a, b in zip(values, values[1:]))
             assert abs(values[0] - values[-1]) <= largest_step * 1.1, f"{name}: loop click"
         fingerprint = hashlib.sha256(array("f", values).tobytes()).hexdigest()
@@ -211,7 +231,9 @@ def preview(sounds):
         value = sample_loop(sounds['engine_chug_load'], position) * gain
         reel.extend((value * math.sqrt(1 - pan), value * math.sqrt(pan)))
     cues = [("countdown", .85), ("countdown", 1), ("countdown", 1.15),
-            ("go", 1), ("wall", 1), ("finish", 1)]
+            ("go", 1), ("wall", 1), ("finish", 1),
+            ("boost_engage", 1), ("takeoff", 1), ("landing", 1),
+            ("position_gain", 1), ("wind", 1)]
     for name, pitch in cues:
         values = sounds[name]
         for i in range(RATE):

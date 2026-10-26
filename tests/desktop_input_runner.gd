@@ -32,6 +32,9 @@ func run() -> void:
 	# Dummy audio backends do not consume looping playbacks; test driving independently.
 	game.audio.enabled = false
 	game.start_race()
+	# Keep traffic out of this focused input check; race/contact suites cover the grid.
+	for index in range(1, game.racers.size()):
+		game.racers[index].reset(1000.0 + index * 16.0, 5.0)
 	game.state = game.State.RACING
 	game.ui.show_screen("")
 	game._physics_process(0.016)
@@ -39,10 +42,11 @@ func run() -> void:
 	for i in range(180):
 		game._physics_process(1.0 / 60.0)
 	check(game.racers[0].speed > 60, "Keyboard W accelerates through Input API")
+	var initial_lane: float = game.racers[0].lateral_offset
 	key(KEY_D, true)
 	for i in range(30):
 		game._physics_process(1.0 / 60.0)
-	check(game.racers[0].lateral_offset > 1, "Simultaneous W+D drives and steers")
+	check(game.racers[0].lateral_offset > initial_lane + 1, "Simultaneous W+D drives and steers")
 	key(KEY_D, false)
 	key(KEY_SPACE, true)
 	game._physics_process(0.1)

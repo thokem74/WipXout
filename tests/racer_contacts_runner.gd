@@ -103,16 +103,16 @@ func run() -> void:
 		"Ships on different lap counts still collide at the same track location")
 	# Resolve a three-ship pile-up without manufacturing race progress.
 	for lane: float in [0.0, rear.lateral_limit()]:
-		for racer: Racer in game.racers:
+		for racer: Racer in game.racers.slice(0, 3):
 			racer.reset(140.0, lane)
 			racer.prepare_step(0.016, Vector3.ZERO)
-		RacerContacts.resolve(game.racers)
+		RacerContacts.resolve([game.racers[0], game.racers[1], game.racers[2]])
 		var separated := true
 		for i in range(3):
 			for j in range(i + 1, 3):
 				separated = separated and absf(game.racers[i].lateral_offset
 					- game.racers[j].lateral_offset) >= shape.size.x
-		for racer: Racer in game.racers:
+		for racer: Racer in game.racers.slice(0, 3):
 			racer.finish_step(0.016, 0.016)
 			separated = separated and absf(racer.lateral_offset) <= racer.lateral_limit()
 			separated = separated and racer.progress.distance == 140.0

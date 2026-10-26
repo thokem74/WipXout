@@ -44,7 +44,7 @@ func run() -> void:
 	var effect_index := AudioServer.get_bus_effect_count(0)
 	AudioServer.add_bus_effect(0, capture)
 	# Keep rivals out of range while measuring the player's direct mix.
-	for index in range(1, 3):
+	for index in range(1, game.racers.size()):
 		game.racers[index].global_position = Vector3(10000 + index * 1000, 0, 0)
 	var player: Racer = game.racers[0]
 	player.speed = 0.0
@@ -75,12 +75,26 @@ func run() -> void:
 	player.boost_active = true
 	game.audio.update_racers(game.racers, true, 1.0)
 	game.audio.cue("Finish")
+	game.audio.cue("Takeoff")
+	game.audio.cue("Landing")
+	game.audio.cue("PositionGain")
 	var combined_output := await sample_output()
 	check(combined_output.y <= db_to_linear(-1.0) + 0.002,
 		"Combined racers, boost and cue retain peak headroom")
 	# Capture is pre-fader; the main test runner separately checks the volume UI.
 	print("AUDIO_OUTPUT RMS idle=%.4f loaded=%.4f rival=%.4f peak=%.4f" % [
-		idle_output.x, loaded_output.x, rival_output.x, loaded_output.y])
+		idle_output.x, loaded_output.x, rival_output.x, combined_output.y])
+	# Verify the shared engine bus responds to tunnel entry and exit smoothly.
+	player.track_distance = 500.0
+	game.audio.update_racers(game.racers, true, 0.05)
+	check(game.audio.tunnel_wet > 0.0 and game.audio.tunnel_wet < 0.18,
+		"Tunnel reverb fades in rather than switching abruptly")
+	game.audio.update_racers(game.racers, true, 1.0)
+	var tunnel_mix := await sample_output()
+	check(tunnel_mix.y <= db_to_linear(-1.0) + 0.002, "Tunnel mix retains limiter headroom")
+	player.track_distance = 2000.0
+	game.audio.update_racers(game.racers, true, 1.0)
+	check(game.audio.tunnel_wet < 0.001, "Tunnel reverb fades away in open air")
 	game.audio.stop_all()
 	await create_timer(0.1).timeout
 	AudioServer.remove_bus_effect(0, effect_index)

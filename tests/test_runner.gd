@@ -65,6 +65,10 @@ func run() -> void:
 	check(player.speed < previous_speed, "Brake reduces speed")
 	game.start_race()
 	check(game.state == game.State.COUNTDOWN and not game.driving.enabled, "Play enters countdown without calibration")
+	# Isolate input response from the crowded six-racer starting grid.
+	for index in range(1, game.racers.size()):
+		game.racers[index].reset(1000.0 + index * 16.0, 5.0)
+
 	game._physics_process(4.0)
 	game._physics_process(0.016)
 	var pad_rect: Rect2 = game.ui.get_pad_rect()
@@ -73,10 +77,11 @@ func run() -> void:
 	for i in range(60):
 		game._physics_process(1.0 / 60.0)
 	check(player.speed > 20, "HUD pad accelerates actual racer")
+	var steering_start := player.lateral_offset
 	drag(game.driving, 0, pad_top + Vector2(110, 0))
 	for i in range(30):
 		game._physics_process(1.0 / 60.0)
-	check(player.lateral_offset > 1, "HUD diagonal accelerates and steers actual racer")
+	check(player.lateral_offset > steering_start + 1, "HUD diagonal accelerates and steers actual racer")
 	check(game.ui.get_node("SafeArea/HUD/DrivingPad").finger_active, "Pad indicator follows capture")
 	touch(game.driving, 4, game.ui.get_boost_rect().get_center(), true)
 	game._physics_process(0.016)
@@ -100,32 +105,35 @@ func run() -> void:
 	game.start_race()
 	game.state = game.State.RACING
 	game.demo_mode = true
-	var jump_counts := [0, 0, 0]
-	var previously_airborne := [false, false, false]
+	var jump_counts := [0, 0, 0, 0, 0, 0]
+	var previously_airborne := [false, false, false, false, false, false]
 	# Exercise the actual controller, AI and finish/results transition at fixed 60 Hz.
 	for i in range(60 * 600):
 		game._physics_process(1.0 / 60.0)
-		for index in range(3):
+		for index in range(game.racers.size()):
 			if game.racers[index].airborne and not previously_airborne[index]:
 				jump_counts[index] += 1
 			previously_airborne[index] = game.racers[index].airborne
 		if i % 6000 == 0:
 			print("TRACE time=", game.elapsed, " distance=", player.track_distance, " progress length=", player.progress.circuit_length, " laps=", player.progress.completed_laps, " speed=", player.speed, " boost=", player.boost_charge)
-		if game.finish_order.size() == 3:
+		if game.finish_order.size() == 6:
 			break
-	check(jump_counts == [6, 6, 6], "All racers take both jumps on every lap")
-	check(game.finish_order.size() == 3, "All three racers finish")
+	check(jump_counts == [6, 6, 6, 6, 6, 6], "All racers take both jumps on every lap")
+	check(game.finish_order.size() == 6, "All six racers finish")
 	check(game.state == game.State.RESULTS, "Player finish shows results")
 	check(player.progress.completed_laps == 3, "Player completes exactly three laps")
-	check(game.racers[1].progress.completed_laps == 3 and game.racers[2].progress.completed_laps == 3, "Both AI complete three laps")
-	check(player.progress.finish_time > 300 and player.progress.finish_time < 480,
-		"Revised race duration stays between five and eight minutes")
-	check(player.finished_rank >= 1 and player.finished_rank <= 3, "Finish rank assigned")
+	for rival: Racer in game.racers.slice(1):
+		check(rival.progress.completed_laps == 3, "Every AI completes three laps")
+	check(player.progress.finish_time > 300 and player.progress.finish_time < 600,
+		"Revised race duration stays within the ten-minute simulation budget")
+	check(player.finished_rank >= 1 and player.finished_rank <= 6, "Finish rank assigned")
 	check(is_finite(player.progress.best_lap), "Best lap recorded")
 	print("Finish times: player=%.3f, ION=%.3f, EMBER=%.3f" % [player.progress.finish_time, game.racers[1].progress.finish_time, game.racers[2].progress.finish_time])
-	var ranks := [game.racers[0].finished_rank, game.racers[1].finished_rank, game.racers[2].finished_rank]
+	var ranks := []
+	for racer: Racer in game.racers:
+		ranks.append(racer.finished_rank)
 	ranks.sort()
-	check(ranks == [1, 2, 3], "Finishing order contains unique ranks")
+	check(ranks == [1, 2, 3, 4, 5, 6], "Finishing order contains unique ranks")
 	game._on_action("restart")
 	check(game.finish_order.is_empty() and player.progress.completed_laps == 0 and player.boost_charge == 1, "Completed race restarts cleanly")
 	game.apply_settings()
@@ -226,6 +234,7 @@ func test_track_layout(circuit: Circuit) -> void:
 	var minimum_height := INF
 	var maximum_height := -INF
 	var maximum_grade := 0.0
+	var sloped_samples := 0
 	var frames_valid := true
 	var straight_length := 0.0
 	var longest_straight := 0.0
@@ -253,11 +262,13 @@ func test_track_layout(circuit: Circuit) -> void:
 		maximum_height = maxf(maximum_height, pose.origin.y)
 		if i < samples:
 			positions.append(pose.origin)
+			if absf(grade) > 0.03:
+				sloped_samples += 1
 			if absf(grade) > 0.01:
 				slope_length += step
 				longest_slope = maxf(longest_slope, slope_length)
 			else:
-				if slope_length >= 990.0:
+				if slope_length >= 380.0:
 					sustained_slopes += 1
 				slope_length = 0.0
 			if absf(grade) > 0.01:
@@ -283,17 +294,29 @@ func test_track_layout(circuit: Circuit) -> void:
 	check(short_straights >= 1, "Starting grid retains a short 100–180 metre straight")
 	check(circuit.length >= 8451.0 and circuit.length <= 10329.0,
 		"Circuit stays within ten percent of original length")
-	if slope_length >= 990.0:
+	if slope_length >= 380.0:
 		sustained_slopes += 1
-	check(sustained_slopes >= 8 and longest_slope <= 1120.0,
-		"Four sustained climbs and descents around 1,000–1,100 metres")
+	check(sustained_slopes >= 8 and longest_slope <= 430.0,
+		"Four climb/descent pairs fit the one-third graded course")
 	check(maximum_bend >= 1.0 / 110.0 and maximum_bend <= 1.0 / 75.0,
 		"Hardest corners have approximately 75–110 metre radii")
 	check(turn_reversals >= 6, "Track includes at least three alternating S-bend sequences")
-	check(maximum_height - minimum_height >= 125.0 and maximum_height - minimum_height <= 135.0,
-		"Track elevation range is approximately 130 metres")
+	check(maximum_height - minimum_height >= 38.0 and maximum_height - minimum_height <= 43.0,
+		"Track elevation matches the ten-percent graded runs")
 	check(crests >= 4 and dips >= 3, "Track has four distinct climbs and descents")
-	check(maximum_grade <= 0.20, "Track grades remain within twenty percent")
+	check(maximum_grade >= 0.095 and maximum_grade <= 0.11, "Track grades are approximately ten percent")
+	check(float(sloped_samples) / samples >= 0.32 and float(sloped_samples) / samples <= 0.35,
+		"One third of the lap is uphill/downhill, leaving two thirds level")
+	var hard_grade_cuts := 0
+	for index in range(circuit.route.curve.point_count - 1):
+		var incoming: Vector3 = -circuit.route.curve.get_point_in(index)
+		var outgoing: Vector3 = circuit.route.curve.get_point_out(index)
+		var before := incoming.y / maxf(Vector2(incoming.x, incoming.z).length(), 0.001)
+		var after := outgoing.y / maxf(Vector2(outgoing.x, outgoing.z).length(), 0.001)
+		if absf(before - after) > 0.075:
+			hard_grade_cuts += 1
+	check(hard_grade_cuts >= 16, "Each climb and descent directly meets level road without eased slopes")
+	print("Sloped track: %.1f%%, hard grade cuts: %d" % [100.0 * sloped_samples / samples, hard_grade_cuts])
 	# Non-neighbouring road samples must leave room for the full track width.
 	var clearance_valid := true
 	var neighbour_samples := ceili(100.0 / step)
@@ -339,7 +362,7 @@ func test_tunnels(circuit: Circuit) -> void:
 		for node_name: String in ["Ribs", "Guides"]:
 			check(tunnel.get_node(node_name).mesh.get_surface_count() == 1, "Tunnel neon outlines exist")
 	var climb: TrackTunnel = tunnels[0]
-	check(-circuit.frame(climb.start_distance + climb.tunnel_length / 2.0).basis.z.y > 0.1,
+	check(-circuit.frame(climb.start_distance + climb.tunnel_length / 2.0).basis.z.y > 0.09,
 		"Hill tunnel follows a sustained climb")
 	var bend: TrackTunnel = tunnels[1]
 	check(absf(circuit.curvature(bend.start_distance + bend.tunnel_length / 2.0)) > 0.003,

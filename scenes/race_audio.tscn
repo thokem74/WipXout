@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=16 format=3]
 [ext_resource type="Script" path="res://scripts/race_audio.gd" id="1"]
 [ext_resource type="AudioStream" path="res://assets/audio/engine_chug_idle.wav" id="4"]
 [ext_resource type="AudioStream" path="res://assets/audio/engine_chug_load.wav" id="5"]
@@ -9,35 +9,47 @@
 [ext_resource type="AudioStream" path="res://assets/audio/countdown.wav" id="10"]
 [ext_resource type="AudioStream" path="res://assets/audio/go.wav" id="11"]
 [ext_resource type="AudioStream" path="res://assets/audio/finish.wav" id="12"]
+[ext_resource type="AudioStream" path="res://assets/audio/wind.wav" id="13"]
+[ext_resource type="AudioStream" path="res://assets/audio/boost_engage.wav" id="14"]
+[ext_resource type="AudioStream" path="res://assets/audio/takeoff.wav" id="15"]
+[ext_resource type="AudioStream" path="res://assets/audio/landing.wav" id="16"]
+[ext_resource type="AudioStream" path="res://assets/audio/position_gain.wav" id="17"]
 [node name="RaceAudio" type="Node"]
 script = ExtResource("1")
 [node name="EngineIdle" type="AudioStreamPlayer" parent="."]
+bus = &"RaceEngines"
 stream = ExtResource("4")
 volume_db = -60.0
 [node name="EngineLoad" type="AudioStreamPlayer" parent="."]
+bus = &"RaceEngines"
 stream = ExtResource("5")
 volume_db = -60.0
 [node name="RivalOneIdle" type="AudioStreamPlayer3D" parent="."]
+bus = &"RaceEngines"
 stream = ExtResource("4")
 volume_db = -60.0
 unit_size = 10.0
-max_distance = 110.0
+max_distance = 120.0
 [node name="RivalOneLoad" type="AudioStreamPlayer3D" parent="."]
+bus = &"RaceEngines"
 stream = ExtResource("5")
 volume_db = -60.0
 unit_size = 10.0
-max_distance = 110.0
+max_distance = 120.0
 [node name="RivalTwoIdle" type="AudioStreamPlayer3D" parent="."]
+bus = &"RaceEngines"
 stream = ExtResource("6")
 volume_db = -60.0
 unit_size = 10.0
-max_distance = 110.0
+max_distance = 120.0
 [node name="RivalTwoLoad" type="AudioStreamPlayer3D" parent="."]
+bus = &"RaceEngines"
 stream = ExtResource("7")
 volume_db = -60.0
 unit_size = 10.0
-max_distance = 110.0
+max_distance = 120.0
 [node name="Boost" type="AudioStreamPlayer" parent="."]
+bus = &"RaceEngines"
 stream = ExtResource("8")
 volume_db = -60.0
 [node name="Wall" type="AudioStreamPlayer" parent="."]
@@ -51,4 +63,67 @@ stream = ExtResource("11")
 volume_db = -10.0
 [node name="Finish" type="AudioStreamPlayer" parent="."]
 stream = ExtResource("12")
+volume_db = -12.0
+
+[node name="RivalThreeIdle" type="AudioStreamPlayer3D" parent="."]
+stream = ExtResource("4")
+bus = &"RaceEngines"
+volume_db = -60.0
+unit_size = 10.0
+max_distance = 120.0
+
+[node name="RivalThreeLoad" type="AudioStreamPlayer3D" parent="."]
+stream = ExtResource("5")
+bus = &"RaceEngines"
+volume_db = -60.0
+unit_size = 10.0
+max_distance = 120.0
+
+[node name="RivalFourIdle" type="AudioStreamPlayer3D" parent="."]
+stream = ExtResource("6")
+bus = &"RaceEngines"
+volume_db = -60.0
+unit_size = 10.0
+max_distance = 120.0
+
+[node name="RivalFourLoad" type="AudioStreamPlayer3D" parent="."]
+stream = ExtResource("7")
+bus = &"RaceEngines"
+volume_db = -60.0
+unit_size = 10.0
+max_distance = 120.0
+
+[node name="RivalFiveIdle" type="AudioStreamPlayer3D" parent="."]
+stream = ExtResource("4")
+bus = &"RaceEngines"
+volume_db = -60.0
+unit_size = 10.0
+max_distance = 120.0
+
+[node name="RivalFiveLoad" type="AudioStreamPlayer3D" parent="."]
+stream = ExtResource("5")
+bus = &"RaceEngines"
+volume_db = -60.0
+unit_size = 10.0
+max_distance = 120.0
+
+[node name="Wind" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("13")
+volume_db = -20.0
+bus = &"RaceEngines"
+
+[node name="BoostEngage" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("14")
+volume_db = -16.0
+
+[node name="Takeoff" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("15")
+volume_db = -14.0
+
+[node name="Landing" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("16")
+volume_db = -12.0
+
+[node name="PositionGain" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("17")
 volume_db = -12.0

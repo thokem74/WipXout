@@ -8,6 +8,9 @@ const PANEL_NAMES := ["MainMenu", "PauseMenu", "SettingsMenu", "ResultsMenu"]
 @onready var hud: Control = $SafeArea/HUD
 @onready var overlay: Control = $SafeArea/Overlay
 var active_screen: String = ""
+var racer_count: int = 6
+var impact_amount: float = 0.0
+var message_time: float = 0.0
 
 
 func _ready() -> void:
@@ -54,7 +57,7 @@ func load_settings(data: SaveData) -> void:
 
 func update_hud(player: Racer, position_index: int, race_time: float) -> void:
 	$SafeArea/HUD/Lap.text = "LAP\n%d / 3" % mini(player.progress.completed_laps + 1, 3)
-	$SafeArea/HUD/Position.text = "POS\n%d / 3" % position_index
+	$SafeArea/HUD/Position.text = "POS\n%d / %d" % [position_index, racer_count]
 	$SafeArea/HUD/Time.text = format_time(race_time)
 	$SafeArea/HUD/Speed.text = "%03d\nKM/H" % roundi(player.speed * 3.6)
 	$SafeArea/HUD/BoostMeter.value = player.boost_charge
@@ -79,8 +82,8 @@ func set_pad_position(position: Vector2, active: bool) -> void:
 
 
 func show_results(player: Racer, data: SaveData) -> void:
-	$SafeArea/Overlay/ResultsMenu/Result.text = "POSITION  %d / 3\n\nRACE  %s\nBEST LAP  %s\n\nLOCAL BEST  %s" % [
-		player.finished_rank, format_time(player.progress.finish_time),
+	$SafeArea/Overlay/ResultsMenu/Result.text = "POSITION  %d / %d\n\nRACE  %s\nBEST LAP  %s\n\nLOCAL BEST  %s" % [
+		player.finished_rank, racer_count, format_time(player.progress.finish_time),
 		format_time(player.progress.best_lap), format_time(data.best_race)]
 	show_screen("ResultsMenu")
 
@@ -90,3 +93,40 @@ static func format_time(seconds: float) -> String:
 		return "--:--.---"
 	var milliseconds := roundi(seconds * 1000.0)
 	return "%02d:%02d.%03d" % [milliseconds / 60000, (milliseconds / 1000) % 60, milliseconds % 1000]
+
+
+func setup_race(circuit: Circuit, racers: Array[Racer]) -> void:
+	racer_count = racers.size()
+	$SafeArea/HUD/Minimap.setup(circuit, racers)
+	update_minimap(RaceStandings.ordered(racers))
+
+
+func update_minimap(standings: Array[Racer]) -> void:
+	$SafeArea/HUD/Minimap.update_markers(standings)
+
+
+func flash_impact() -> void:
+	impact_amount = 1.0
+
+
+func show_race_message(message: String) -> void:
+	$SafeArea/HUD/RaceMessage.text = message
+	message_time = 1.2
+
+
+func update_effects(player: Racer, delta: float, active: bool) -> void:
+	impact_amount = move_toward(impact_amount, 0.0, delta * 6.0)
+	message_time = maxf(0.0, message_time - delta)
+	$SafeArea/HUD/RaceMessage.modulate.a = minf(message_time * 3.0, 1.0) if active else 0.0
+	var material: ShaderMaterial = $SafeArea/HUD/SpeedEffects.material
+	material.set_shader_parameter("boost_amount", 1.0 if active and player.boost_active else 0.0)
+	material.set_shader_parameter("impact_amount", impact_amount if active else 0.0)
+
+
+func reset_effects() -> void:
+	impact_amount = 0.0
+	message_time = 0.0
+	$SafeArea/HUD/RaceMessage.modulate.a = 0.0
+	var material: ShaderMaterial = $SafeArea/HUD/SpeedEffects.material
+	material.set_shader_parameter("boost_amount", 0.0)
+	material.set_shader_parameter("impact_amount", 0.0)

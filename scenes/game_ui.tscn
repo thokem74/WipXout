@@ -1,6 +1,10 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=14 format=3]
 [ext_resource type="Script" path="res://scripts/game_ui.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/driving_pad.gd" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/race_minimap.tscn" id="3"]
+[ext_resource type="Shader" path="res://resources/race_feedback.gdshader" id="4"]
+[sub_resource type="ShaderMaterial" id="FeedbackMaterial"]
+shader = ExtResource("4")
 [sub_resource type="SystemFont" id="Font"]
 font_names = PackedStringArray("monospace")
 [sub_resource type="StyleBoxFlat" id="Button"]
@@ -79,6 +83,26 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+[node name="SpeedEffects" type="ColorRect" parent="SafeArea/HUD"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+material = SubResource("FeedbackMaterial")
+color = Color(1, 1, 1, 1)
+[node name="RaceMessage" type="Label" parent="SafeArea/HUD"]
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -180.0
+offset_right = 180.0
+offset_top = 100.0
+theme_override_font_sizes/font_size = 24
+horizontal_alignment = 1
+modulate = Color(1, 0.85, 0.3, 0)
+mouse_filter = 2
+[node name="Minimap" parent="SafeArea/HUD" instance=ExtResource("3")]
+offset_top = 112.0
+offset_bottom = 322.0
 [node name="Lap" type="Label" parent="SafeArea/HUD"]
 theme_override_font_sizes/font_size = 30
 text = "LAP\n1 / 3"
@@ -87,7 +111,7 @@ offset_bottom = 100.0
 mouse_filter = 2
 [node name="Position" type="Label" parent="SafeArea/HUD"]
 theme_override_font_sizes/font_size = 30
-text = "POS\n3 / 3"
+text = "POS\n6 / 6"
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -160.0
@@ -338,7 +362,7 @@ horizontal_alignment = 1
 mouse_filter = 2
 [node name="Description" type="Label" parent="SafeArea/Overlay/MainMenu"]
 theme_override_font_sizes/font_size = 18
-text = "Three pilots. Three laps. One city.\n\nRight pad: steer / accelerate / brake\nLeft button: hold BOOST to surge"
+text = "Six pilots. Three laps. One city.\n\nRight pad: steer / accelerate / brake\nLeft button: hold BOOST to surge"
 horizontal_alignment = 1
 mouse_filter = 2
 [node name="Play" type="Button" parent="SafeArea/Overlay/MainMenu" groups=["menu_button"]]

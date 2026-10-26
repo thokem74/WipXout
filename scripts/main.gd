@@ -1,6 +1,8 @@
 extends Node3D
 
 const RACER_SCENE := preload("res://scenes/racer.tscn")
+@export var pilot_profiles: Array[PilotProfile] = []
+
 enum State { MENU, COUNTDOWN, RACING, PAUSED, RESULTS, SETTINGS }
 
 @onready var circuit: Circuit = $Circuit
@@ -19,18 +21,24 @@ var countdown: float = 3.5
 var last_count: int = -1
 var hud_timer: float = 0.0
 var demo_mode: bool = false
+var standings: Array[Racer] = []
+var last_player_rank: int = 6
+var position_cue_cooldown: float = 0.0
 
 
 func _ready() -> void:
 	data.load_settings()
-	for index in range(3):
+	for index in range(pilot_profiles.size()):
 		var racer: Racer = RACER_SCENE.instantiate()
 		racer.ai_index = index - 1
-		racer.neon_color = [Color(1, 0.015, 0.8), Color(0, 0.85, 1), Color(1, 0.24, 0.015)][index]
-		racer.racer_name = ["VECTOR", "ION", "EMBER"][index]
+		racer.profile = pilot_profiles[index]
+		racer.neon_color = racer.profile.color
+		racer.racer_name = racer.profile.display_name
 		$Racers.add_child(racer)
-		racer.setup(circuit, index * 14.0, [-1.0, -5.0, 5.0][index])
+		racer.setup(circuit, float(index / 2) * 14.0, -5.0 if index % 2 == 0 else 5.0)
 		racers.append(racer)
+	ui.setup_race(circuit, racers)
+	standings = RaceStandings.ordered(racers)
 	camera.target = racers[0]
 	ui.action_requested.connect(_on_action)
 	ui.setting_changed.connect(_on_setting)
@@ -52,7 +60,12 @@ func start_race() -> void:
 	elapsed = 0.0
 	finish_order.clear()
 	for i in range(racers.size()):
-		racers[i].reset(i * 14.0, [-1.0, -5.0, 5.0][i])
+		racers[i].reset(float(i / 2) * 14.0, -5.0 if i % 2 == 0 else 5.0)
+	standings = RaceStandings.ordered(racers)
+	last_player_rank = standings.find(racers[0]) + 1
+	position_cue_cooldown = 0.0
+	ui.reset_effects()
+	camera.clear_impulse()
 	camera.snap_next = true
 	start_countdown()
 
@@ -93,6 +106,8 @@ func _physics_process(delta: float) -> void:
 			racer.finish_step(delta, elapsed)
 			if (racer.wall_hit or racer.contact_hit) and racer.ai_index < 0:
 				audio.cue("Wall")
+			if racer == racers[0]:
+				update_player_feedback(racer)
 		var newly_finished: Array[Racer] = []
 		for racer in racers:
 			if racer.progress.finish_time >= 0 and racer.finished_rank == 0:
@@ -106,24 +121,42 @@ func _physics_process(delta: float) -> void:
 		if countdown > -0.7:
 			countdown -= delta
 			ui.set_countdown("GO" if countdown > -0.7 else "")
+	position_cue_cooldown = maxf(0.0, position_cue_cooldown - delta)
+	ui.update_effects(racers[0], delta, state == State.RACING)
 	hud_timer += delta
 	if hud_timer > 0.08:
 		hud_timer = 0.0
-		ui.update_hud(racers[0], player_position(), elapsed)
+		standings = RaceStandings.ordered(racers)
+		var rank := standings.find(racers[0]) + 1
+		if state == State.RACING and elapsed > 3.0 and rank < last_player_rank and position_cue_cooldown == 0.0:
+			audio.cue("PositionGain")
+			ui.show_race_message("POSITION +%d" % (last_player_rank - rank))
+			position_cue_cooldown = 2.0
+		last_player_rank = rank
+		ui.update_hud(racers[0], rank, elapsed)
+		ui.update_minimap(standings)
 	audio.update_racers(racers, state == State.COUNTDOWN or state == State.RACING, delta)
 
 
 func player_position() -> int:
-	if racers[0].finished_rank > 0:
-		return racers[0].finished_rank
-	var position_index := 1
-	for i in range(1, racers.size()):
-		if racers[i].finished_rank > 0 or racers[i].progress.distance > racers[0].progress.distance:
-			position_index += 1
-	return position_index
+	return RaceStandings.ordered(racers).find(racers[0]) + 1
+
+
+func update_player_feedback(player: Racer) -> void:
+	if player.wall_hit or player.contact_hit:
+		camera.add_impulse(0.18)
+		ui.flash_impact()
+	if player.took_off:
+		audio.cue("Takeoff")
+		camera.add_impulse(0.10)
+	if player.landed:
+		audio.cue("Landing")
+		camera.add_impulse(0.24)
 
 
 func complete_race() -> void:
+	ui.reset_effects()
+	camera.clear_impulse()
 	state = State.RESULTS
 	driving.enabled = false
 	driving.clear()
@@ -140,6 +173,10 @@ func pause_race() -> void:
 	resume_state = state
 	state = State.PAUSED
 	audio.stop_all()
+	ui.reset_effects()
+	camera.clear_impulse()
+	for racer: Racer in racers:
+		racer.effects.stop()
 	driving.enabled = false
 	driving.clear()
 	for racer in racers:
@@ -159,6 +196,11 @@ func _on_action(action: String) -> void:
 			driving.enabled = state == State.RACING
 			ui.show_screen("")
 		"main":
+			audio.stop_all()
+			ui.reset_effects()
+			camera.clear_impulse()
+			for racer: Racer in racers:
+				racer.effects.stop()
 			state = State.MENU
 			driving.enabled = false
 			driving.clear()

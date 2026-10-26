@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=17 format=3]
 [ext_resource type="Script" path="res://scripts/main.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/circuit.tscn" id="2"]
 [ext_resource type="Script" path="res://scripts/chase_camera.gd" id="3"]
@@ -7,6 +7,44 @@
 [ext_resource type="Script" path="res://scripts/driving_input.gd" id="6"]
 [ext_resource type="PackedScene" path="res://scenes/race_audio.tscn" id="7"]
 [ext_resource type="Script" path="res://scripts/performance_probe.gd" id="8"]
+[ext_resource type="Script" path="res://scripts/pilot_profile.gd" id="9"]
+
+[sub_resource type="Resource" id="Pilot0"]
+script = ExtResource("9")
+display_name = "VECTOR"
+color = Color(1, 0.015, 0.8, 1)
+cruise_speed = 88.0
+
+[sub_resource type="Resource" id="Pilot1"]
+script = ExtResource("9")
+display_name = "ION"
+color = Color(0, 0.85, 1, 1)
+cruise_speed = 84.0
+
+[sub_resource type="Resource" id="Pilot2"]
+script = ExtResource("9")
+display_name = "EMBER"
+color = Color(1, 0.3, 0.06, 1)
+cruise_speed = 86.0
+
+[sub_resource type="Resource" id="Pilot3"]
+script = ExtResource("9")
+display_name = "VENOM"
+color = Color(0.48, 1, 0.15, 1)
+cruise_speed = 82.0
+
+[sub_resource type="Resource" id="Pilot4"]
+script = ExtResource("9")
+display_name = "NOVA"
+color = Color(0.55, 0.32, 1, 1)
+cruise_speed = 85.0
+
+[sub_resource type="Resource" id="Pilot5"]
+script = ExtResource("9")
+display_name = "SOL"
+color = Color(1, 0.83, 0.12, 1)
+cruise_speed = 87.0
+
 [sub_resource type="Environment" id="Environment"]
 background_mode = 1
 background_color = Color(0.0005, 0.0005, 0.002, 1)
@@ -26,6 +64,7 @@ fog_light_energy = 0.1
 fog_density = 0.0007
 [node name="NeonVectorRacing" type="Node3D"]
 script = ExtResource("1")
+pilot_profiles = Array[ExtResource("9")]([SubResource("Pilot0"), SubResource("Pilot1"), SubResource("Pilot2"), SubResource("Pilot3"), SubResource("Pilot4"), SubResource("Pilot5")])
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment")
 [node name="Circuit" parent="." instance=ExtResource("2")]

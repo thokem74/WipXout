@@ -52,11 +52,12 @@ func surface_frame(distance: float) -> Transform3D:
 
 func curvature(distance: float) -> float:
 	var first := -frame(distance).basis.z
-	var second := -frame(distance + 28.0).basis.z
+	var second := -frame(distance + 8.0).basis.z
+	# A short sample preserves the direct straight-to-curve change in demand.
 	# Steering responds to heading changes, not the pitch of a climb or descent.
 	first.y = 0.0
 	second.y = 0.0
-	return first.normalized().signed_angle_to(second.normalized(), Vector3.UP) / 28.0
+	return first.normalized().signed_angle_to(second.normalized(), Vector3.UP) / 8.0
 
 
 func build_track() -> void:

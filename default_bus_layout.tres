@@ -4,6 +4,18 @@
 resource_name = "Mix Peak Limiter"
 ceiling_db = -1.0
 
+[sub_resource type="AudioEffectReverb" id="TunnelReverb"]
+room_size = 0.45
+wet = 0.0
+
 [resource]
 bus/0/effect/0/effect = SubResource("PeakLimiter")
 bus/0/effect/0/enabled = true
+bus/1/name = &"RaceEngines"
+bus/1/solo = false
+bus/1/mute = false
+bus/1/bypass_fx = false
+bus/1/volume_db = 0.0
+bus/1/send = &"Master"
+bus/1/effect/0/effect = SubResource("TunnelReverb")
+bus/1/effect/0/enabled = true

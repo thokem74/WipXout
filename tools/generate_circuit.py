@@ -1,8 +1,9 @@
 """Rebuild the editor-editable Curve3D from a rounded city-block layout.
 
-Run from the project root with Python 3. Distances are metres. Rounded corners
-use circular Bezier approximations; short spans keep the hill profile smooth.
+Run from the project root with Python 3. Distances are metres. Circular corners
+meet true straights directly; linear ten-percent grades meet level road directly.
 """
+import bisect
 import math
 from pathlib import Path
 
@@ -13,8 +14,7 @@ POINTS = [(0, -400), (-250, -650), (-250, -1050), (-650, -1300),
           (-1350, 1300), (-1100, 1100), (-700, 1300), (-250, 1300),
           (0, 1050), (0, 650), (-200, 400), (0, 0)]
 RADIUS = 95.0
-HILL_HEIGHT = 130.0
-HILL_RUN = 1050.0
+GRADIENT = 0.10
 HILL_COUNT = 4
 MAX_SPAN = 35.0
 
@@ -47,13 +47,26 @@ def derivative(p, t):
 
 
 def generate():
-    corners = []
+    # Divide long city blocks with explicit corners, rather than eased S-curves.
+    # Every connecting span is truly straight; curvature changes at the arc lip.
+    points = []
+    broad_corners = {POINTS[i] for i in (3, 4, 5, 6, 15, 16, 17, 18)}
     for i, center in enumerate(POINTS):
-        incoming = norm(sub(center, POINTS[i-1]))
-        outgoing = norm(sub(POINTS[(i+1) % len(POINTS)], center))
+        previous = POINTS[i-1]
+        delta = sub(center, previous)
+        if math.hypot(*delta) > 300:
+            normal = norm((-delta[1], delta[0]))
+            midpoint = add(add(previous, mul(delta, 0.5)), mul(normal, 50 if i % 2 else -50))
+            points.append(midpoint)
+            if center in broad_corners or previous in broad_corners:
+                broad_corners.add(midpoint)
+        points.append(center)
+    corners = []
+    for i, center in enumerate(points):
+        incoming = norm(sub(center, points[i-1]))
+        outgoing = norm(sub(points[(i+1) % len(points)], center))
         angle = math.acos(max(-1, min(1, sum(a*b for a, b in zip(incoming, outgoing)))))
-        # Broader linked bends contrast with the technical 95 m corners.
-        radius = 160.0 if i in (5, 6, 17, 18) else RADIUS
+        radius = 160.0 if center in broad_corners else RADIUS
         setback = radius * math.tan(angle / 2)
         handle = 4 / 3 * radius * math.tan(angle / 4)
         entry = sub(center, mul(incoming, setback))
@@ -64,72 +77,83 @@ def generate():
     for i, corner in enumerate(corners):
         previous = corners[i-1][-1]
         delta = sub(corner[0], previous)
-        length = math.hypot(*delta)
-        direction = norm(delta)
-        # Keep a short, readable starting grid before the first direction change.
-        if i == 0:
-            grid_end = add(previous, mul(direction, 140.0))
-            grid_delta = sub(grid_end, previous)
-            spans.append([previous, add(previous, mul(grid_delta, 1/3)),
-                          add(previous, mul(grid_delta, 2/3)), grid_end])
-            previous = grid_end
-            delta = sub(corner[0], previous)
-            length = math.hypot(*delta)
-        if length > 170.0:
-            # A linked S interrupts every long straight. Scaling the offset by
-            # length squared keeps short chicanes from becoming sharp kinks.
-            normal = (-direction[1], direction[0])
-            middle = add(add(previous, mul(delta, 0.5)), mul(normal, length**2 / 6000))
-            handle = mul(direction, length / 6)
-            spans.append([previous, add(previous, handle), sub(middle, handle), middle])
-            spans.append([middle, add(middle, handle), sub(corner[0], handle), corner[0]])
-        else:
-            spans.append([previous, add(previous, mul(delta, 1/3)),
-                          add(previous, mul(delta, 2/3)), corner[0]])
+        direction = norm(sub(points[i], points[i-1]))
+        if sum(a*b for a,b in zip(delta, direction)) <= 0:
+            raise ValueError("Corner radii overlap: shorten the adjacent handles")
+        spans.append([previous, add(previous, mul(delta, 1/3)),
+                      add(previous, mul(delta, 2/3)), corner[0]])
         spans.append(corner)
-    # Split each cubic exactly, using its endpoint derivatives as handles.
-    nodes = []
-    distance = 0.0
-    counts = [math.ceil(sum(math.dist(bezier(span, j/100), bezier(span, (j+1)/100))
-                            for j in range(100)) / MAX_SPAN) for span in spans]
-    for index, span in enumerate(spans):
-        count = counts[index]
-        for j in range(count):
-            t = j / count
-            pos = bezier(span, t)
-            tangent = mul(derivative(span, t), 1 / (3 * count))
-            if nodes:
-                distance += math.dist(nodes[-1][0], pos)
-            # The incoming handle belongs to the previous span at joins.
-            if j == 0:
-                incoming = mul(derivative(spans[index-1], 1), -1 / (3 * counts[index-1]))
-            else:
-                incoming = mul(tangent, -1)
-            nodes.append((pos, incoming, tangent, distance))
-    total = distance + math.dist(nodes[-1][0], nodes[0][0])
+    # Arc-length tables locate every grade break exactly inside a planar cubic.
+    tables = []
+    total = 0.0
+    for span in spans:
+        table = [0.0]
+        for j in range(100):
+            table.append(table[-1] + math.dist(bezier(span, j/100), bezier(span, (j+1)/100)))
+        tables.append(table)
+        total += table[-1]
     period = total / HILL_COUNT
-    # Cubic easing gives level crests and valleys while keeping grades below 20%.
-    rise = HILL_RUN
+    # Account for the extra 3D length of slopes: exactly one third of the
+    # travelled course is graded, and two thirds is level.
+    sloped_fraction = 1.0 / (1.0 + 2.0 * math.sqrt(1.0 + GRADIENT**2))
+    rise = period * sloped_fraction / 2.0
+    hill_height = rise * GRADIENT
     flat = (period - 2 * rise) / 2
+    if flat < 110:
+        raise ValueError("Keep enough level road for both jump approaches")
+    phase_offset = flat * 0.5  # Put the lap seam inside level road.
 
-    def hill(s):
-        phase = s % period
+    def hill(distance):
+        phase = (distance + phase_offset) % period
         if phase < flat:
             return 0.0, 0.0
         if phase < flat + rise:
-            t = (phase - flat) / rise
-            return HILL_HEIGHT * t*t*(3-2*t), HILL_HEIGHT * 6*t*(1-t) / rise
-        if phase < 2*flat + rise:
-            return HILL_HEIGHT, 0.0
-        t = (phase - 2*flat - rise) / rise
-        return HILL_HEIGHT * (1-t*t*(3-2*t)), -HILL_HEIGHT * 6*t*(1-t) / rise
+            return hill_height * (phase - flat) / rise, hill_height / rise
+        if phase < 2 * flat + rise:
+            return hill_height, 0.0
+        return hill_height * (1 - (phase - 2 * flat - rise) / rise), -hill_height / rise
 
+    breaks = []
+    for lap in range(HILL_COUNT + 1):
+        for phase in (0.0, flat, flat + rise, 2 * flat + rise):
+            distance = lap * period + phase - phase_offset
+            if 0 < distance < total:
+                breaks.append(distance)
+    breaks.sort()
+    segments = []
+    span_start = 0.0
+    for span, table in zip(spans, tables):
+        count = math.ceil(table[-1] / MAX_SPAN)
+        cuts = {}
+        for j in range(count + 1):
+            t = j / count
+            sample = min(99, int(t * 100))
+            fraction = t * 100 - sample
+            cuts[t] = span_start + table[sample] + fraction * (table[sample+1] - table[sample])
+        for distance in breaks:
+            local = distance - span_start
+            if 0 < local < table[-1]:
+                index = bisect.bisect_left(table, local)
+                fraction = (local - table[index-1]) / (table[index] - table[index-1])
+                cuts[(index - 1 + fraction) / 100] = distance
+        times = sorted(cuts)
+        for first, second in zip(times, times[1:]):
+            segments.append((bezier(span, first), mul(derivative(span, first), (second-first)/3),
+                             mul(derivative(span, second), -(second-first)/3),
+                             cuts[first]))
+        span_start += table[-1]
     values = []
-    for pos, incoming, outgoing, s in nodes + [nodes[0]]:
-        height, slope = hill(s)
-        for handle, sign in [(incoming, -1), (outgoing, 1)]:
-            values.extend([handle[0], sign * slope * math.hypot(*handle), handle[1]])
+    for index in range(len(segments) + 1):
+        pos, outgoing, _, distance = segments[index % len(segments)]
+        incoming = segments[(index-1) % len(segments)][2]
+        height, _ = hill(distance)
+        # Distinct incoming/outgoing grades produce deliberate hard pitch changes.
+        _, before = hill(distance - 0.0001)
+        _, after = hill(distance + 0.0001)
+        values.extend([incoming[0], -before * math.hypot(*incoming), incoming[1]])
+        values.extend([outgoing[0], after * math.hypot(*outgoing), outgoing[1]])
         values.extend([pos[0], height, pos[1]])
+    nodes = segments
     serialized = ', '.join(f'{value:.5f}' for value in values)
     tilts = ', '.join('0' for _ in range(len(nodes)+1))
     Path('resources/city_circuit.tres').write_text(

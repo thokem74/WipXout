@@ -53,4 +53,4 @@ tunnel_length = 700.0
 [node name="SkylineJump" parent="Jumps" instance=ExtResource("4")]
 takeoff_distance = 1250.0
 [node name="SummitJump" parent="Jumps" instance=ExtResource("4")]
-takeoff_distance = 6000.0
+takeoff_distance = 6100.0

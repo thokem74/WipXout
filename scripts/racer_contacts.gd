@@ -25,18 +25,22 @@ static func resolve_pair(first: Racer, second: Racer) -> bool:
 		return false
 	var first_box := first.collision_shape.shape as BoxShape3D
 	var second_box := second.collision_shape.shape as BoxShape3D
-	var separation := Vector2((first_box.size.x + second_box.size.x) * 0.5,
-		(first_box.size.z + second_box.size.z) * 0.5)
-	var start := Vector2(second.previous_lateral_offset - first.previous_lateral_offset,
+	var separation := Vector3((first_box.size.x + second_box.size.x) * 0.5,
+		(first_box.size.z + second_box.size.z) * 0.5,
+		(first_box.size.y + second_box.size.y) * 0.5)
+	var start := Vector3(second.previous_lateral_offset - first.previous_lateral_offset,
 		wrapf(second.previous_track_distance - first.previous_track_distance,
-			-first.circuit.length * 0.5, first.circuit.length * 0.5))
+			-first.circuit.length * 0.5, first.circuit.length * 0.5),
+		contact_height(second, true) - contact_height(first, true))
 	# Local +Z points backward, so a negative hull offset is ahead of the ship origin.
 	start.y += first.collision_shape.position.z - second.collision_shape.position.z
-	var movement := Vector2(
+	var movement := Vector3(
 		(second.lateral_offset - second.previous_lateral_offset)
 			- (first.lateral_offset - first.previous_lateral_offset),
 		(second.track_distance - second.previous_track_distance)
-			- (first.track_distance - first.previous_track_distance))
+			- (first.track_distance - first.previous_track_distance),
+		(contact_height(second, false) - contact_height(second, true))
+			- (contact_height(first, false) - contact_height(first, true)))
 	var axis := swept_axis(start, movement, separation)
 	if axis < 0:
 		return false
@@ -61,13 +65,20 @@ static func resolve_pair(first: Racer, second: Racer) -> bool:
 	return separate_laterally(first, second, start.x, separation.x + CLEARANCE)
 
 
-static func swept_axis(start: Vector2, movement: Vector2, size: Vector2) -> int:
-	if absf(start.x) < size.x and absf(start.y) < size.y:
+static func contact_height(racer: Racer, previous: bool) -> float:
+	# Use road-relative height: a hill must not separate two grounded neighbours.
+	var distance := racer.previous_track_distance if previous else racer.track_distance
+	var height := racer.previous_air_height if previous else racer.air_height
+	return height + racer.circuit.ramp_height(distance) + racer.collision_shape.position.y
+
+
+static func swept_axis(start: Vector3, movement: Vector3, size: Vector3) -> int:
+	if absf(start.x) < size.x and absf(start.y) < size.y and absf(start.z) < size.z:
 		return 0 if size.x - absf(start.x) < size.y - absf(start.y) else 1
 	var entry := -INF
 	var exit := INF
 	var hit_axis := -1
-	for axis in range(2):
+	for axis in range(3):
 		if absf(movement[axis]) < 0.000001:
 			if absf(start[axis]) >= size[axis]:
 				return -1

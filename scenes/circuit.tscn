@@ -1,6 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3]
 [ext_resource type="Script" path="res://scripts/circuit.gd" id="1"]
 [ext_resource type="Curve3D" path="res://resources/city_circuit.tres" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/track_tunnel.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/track_jump.tscn" id="4"]
 [node name="Circuit" type="Node3D"]
 script = ExtResource("1")
 [node name="Route" type="Path3D" parent="."]
@@ -27,3 +29,20 @@ no_depth_test = false
 [node name="City" type="Node3D" parent="."]
 [node name="Landmarks" type="MeshInstance3D" parent="."]
 cast_shadow = 0
+
+[node name="Tunnels" type="Node3D" parent="."]
+[node name="ClimbTunnel" parent="Tunnels" instance=ExtResource("3")]
+start_distance = 400.0
+tunnel_length = 650.0
+[node name="BendTunnel" parent="Tunnels" instance=ExtResource("3")]
+start_distance = 2850.0
+tunnel_length = 750.0
+[node name="SprintTunnel" parent="Tunnels" instance=ExtResource("3")]
+start_distance = 7700.0
+tunnel_length = 700.0
+
+[node name="Jumps" type="Node3D" parent="."]
+[node name="SkylineJump" parent="Jumps" instance=ExtResource("4")]
+takeoff_distance = 1250.0
+[node name="SummitJump" parent="Jumps" instance=ExtResource("4")]
+takeoff_distance = 6000.0

@@ -18,3 +18,9 @@ extends Resource
 @export var camera_height: float = 4.2
 @export var camera_response: float = 7.0
 @export var ai_speeds: Vector2 = Vector2(84.0, 86.0)
+
+# Arcade flight remains in the track corridor, with a ballistic height above it.
+@export var jump_gravity: float = 24.0
+@export var minimum_jump_speed: float = 25.0
+@export var maximum_launch_speed: float = 18.0
+@export var air_steering_factor: float = 0.5

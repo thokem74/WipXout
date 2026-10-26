@@ -9,11 +9,18 @@ const SAMPLE_STEP: float = 8.0
 
 @onready var route: Path3D = $Route
 var length: float = 0.0
+var jumps: Array[TrackJump] = []
 
 
 func _ready() -> void:
 	length = route.curve.get_baked_length()
+	for jump: TrackJump in $Jumps.get_children():
+		jumps.append(jump)
 	build_track()
+	for jump: TrackJump in jumps:
+		jump.build(self)
+	for tunnel: TrackTunnel in $Tunnels.get_children():
+		tunnel.build(self)
 	build_city()
 	build_landmarks()
 
@@ -28,6 +35,19 @@ func frame(distance: float) -> Transform3D:
 	var right := forward.cross(Vector3.UP).normalized()
 	var up := right.cross(forward).normalized()
 	return Transform3D(Basis(right, up, -forward), position_on_path)
+
+
+func ramp_height(distance: float) -> float:
+	var height := 0.0
+	for jump: TrackJump in jumps:
+		height = maxf(height, jump.surface_height(fposmod(distance, length)))
+	return height
+
+
+func surface_frame(distance: float) -> Transform3D:
+	var result := frame(distance)
+	result.origin += result.basis.y * ramp_height(distance)
+	return result
 
 
 func curvature(distance: float) -> float:
@@ -50,8 +70,8 @@ func build_track() -> void:
 	for i in range(samples):
 		var distance := float(i) / samples * length
 		var next_distance := float(i + 1) / samples * length
-		var here := frame(distance)
-		var there := frame(next_distance)
+		var here := surface_frame(distance)
+		var there := surface_frame(next_distance)
 		for side: float in [-1.0, 1.0]:
 			for height: float in [0.10, 2.2]:
 				NeonLines.add_line(rails, here * Vector3(side * WIDTH / 2.0, height, 0),

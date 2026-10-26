@@ -1,0 +1,29 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/track_tunnel.gd" id="1"]
+[ext_resource type="Shader" path="res://resources/neon_core.gdshader" id="2"]
+
+[sub_resource type="StandardMaterial3D" id="ShellMaterial"]
+shading_mode = 0
+cull_mode = 2
+albedo_color = Color(0.008, 0.012, 0.025, 1)
+
+[sub_resource type="ShaderMaterial" id="NeonMaterial"]
+shader = ExtResource("2")
+shader_parameter/line_color = Color(0.15, 0.55, 1, 1)
+shader_parameter/energy = 1.4
+
+[node name="TrackTunnel" type="Node3D"]
+script = ExtResource("1")
+
+[node name="Shell" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+material_override = SubResource("ShellMaterial")
+
+[node name="Ribs" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+material_override = SubResource("NeonMaterial")
+
+[node name="Guides" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+material_override = SubResource("NeonMaterial")

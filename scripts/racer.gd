@@ -6,6 +6,11 @@ extends Node3D
 @export var ai_index: int = -1
 @export var neon_color: Color = Color(1, 0.015, 0.8)
 
+var airborne: bool = false
+var air_height: float = 0.0
+var vertical_velocity: float = 0.0
+var previous_air_height: float = 0.0
+
 var circuit: Circuit
 var progress: RaceProgress
 var track_distance: float = 0.0
@@ -37,6 +42,7 @@ func setup(track: Circuit, start_distance: float, lane: float) -> void:
 
 
 func reset(start_distance: float = 0.0, lane: float = 0.0) -> void:
+	clear_flight()
 	track_distance = start_distance
 	lateral_offset = lane
 	lateral_velocity = 0.0
@@ -58,13 +64,20 @@ func reset(start_distance: float = 0.0, lane: float = 0.0) -> void:
 
 
 func ai_input(time: float) -> Vector3:
-	var bend := absf(circuit.curvature(track_distance + 55.0))
+	# Look across the braking distance so linked corners cannot hide behind a
+	# gentle section. Air steering is weaker, so AI holds a steady landing lane.
+	var bend := 0.0
+	for sample in range(4):
+		var lookahead := float(sample) * 40.0
+		bend = maxf(bend, absf(circuit.curvature(track_distance + lookahead)))
 	var target_speed: float = tuning.ai_speeds[ai_index]
 	target_speed *= clampf(1.0 - bend * (25.0 + ai_index * 5.0), 0.69, 1.0)
-	var desired_lane := sin(time * (0.22 + ai_index * 0.04) + ai_index * 2.0) * 5.0
+	var lane_amplitude := 2.0 if airborne else 5.0
+	var desired_lane := sin(time * (0.22 + ai_index * 0.04) + ai_index * 2.0) * lane_amplitude
 	var steering := clampf((desired_lane - lateral_offset) * 0.25 - lateral_velocity * 0.12, -1, 1)
 	var throttle := clampf((target_speed - speed) * 0.25, -1, 1)
-	var boost := 1.0 if bend < 0.0015 and speed > 65 and boost_charge > 0.4 and sin(time * 0.16 + ai_index) > 0.6 else 0.0
+	var can_boost := bend < 0.0015 and speed > 65 and boost_charge > 0.4
+	var boost := 1.0 if can_boost and sin(time * 0.16 + ai_index) > 0.6 else 0.0
 	return Vector3(steering, throttle, boost)
 
 
@@ -77,6 +90,7 @@ func prepare_step(delta: float, controls: Vector3) -> void:
 	# Keep the start of the sweep; contacts are resolved before committing progress.
 	previous_track_distance = track_distance
 	previous_lateral_offset = lateral_offset
+	previous_air_height = air_height
 	contact_hit = false
 	contact_cooldown = maxf(0.0, contact_cooldown - delta)
 	wall_hit = false
@@ -86,6 +100,7 @@ func prepare_step(delta: float, controls: Vector3) -> void:
 		boost_active = false
 		speed = move_toward(speed, 0.0, 25.0 * delta)
 		return
+	advance_flight(delta)
 	var throttle := clampf(controls.y, -1.0, 1.0)
 	if boost_locked and boost_charge >= 0.25:
 		boost_locked = false
@@ -113,7 +128,10 @@ func prepare_step(delta: float, controls: Vector3) -> void:
 		speed = clampf(speed + force * delta, 0.0, maximum)
 	var turn := circuit.curvature(track_distance)
 	# A gentle outward drift makes lines meaningful without requiring vehicle physics.
-	lateral_velocity += (controls.x * tuning.steering_acceleration + turn * speed * speed * 0.16) * delta
+	var steering_force := controls.x * tuning.steering_acceleration
+	if airborne:
+		steering_force *= tuning.air_steering_factor
+	lateral_velocity += (steering_force + turn * speed * speed * 0.16) * delta
 	lateral_velocity *= exp(-tuning.lateral_damping * delta)
 	lateral_offset += lateral_velocity * delta
 	var limit := lateral_limit()
@@ -132,13 +150,56 @@ func prepare_step(delta: float, controls: Vector3) -> void:
 
 func finish_step(delta: float, race_time: float) -> void:
 	if progress.finish_time >= 0.0:
+		clear_flight()
 		update_pose(delta)
 		return
 	if not progress.advance(track_distance, delta, race_time):
 		recover()
 	if progress.finish_time >= 0.0:
 		engine_load = 0.0
+		clear_flight()
+	else:
+		try_takeoff(delta)
 	update_pose(delta)
+
+
+func clear_flight() -> void:
+	airborne = false
+	air_height = 0.0
+	previous_air_height = 0.0
+	vertical_velocity = 0.0
+	$Wireframe.rotation.x = 0.0
+
+
+func advance_flight(delta: float) -> void:
+	if not airborne:
+		return
+	air_height += vertical_velocity * delta - 0.5 * tuning.jump_gravity * delta * delta
+	vertical_velocity -= tuning.jump_gravity * delta
+	if air_height <= 0.0 and vertical_velocity < 0.0:
+		# Landing preserves forward speed and progress; the road is always beneath us.
+		air_height = 0.0
+		vertical_velocity = 0.0
+		airborne = false
+
+
+func try_takeoff(delta: float) -> void:
+	if airborne or speed < tuning.minimum_jump_speed or track_distance <= previous_track_distance:
+		return
+	for jump: TrackJump in circuit.jumps:
+		# Find the next lip in unwrapped race distance, including later laps.
+		var lap := floorf((previous_track_distance - jump.takeoff_distance) / circuit.length) + 1.0
+		var lip := jump.takeoff_distance + lap * circuit.length
+		if track_distance < lip:
+			continue
+		airborne = true
+		air_height = 0.0
+		vertical_velocity = minf(speed * jump.launch_strength, tuning.maximum_launch_speed)
+		# Contacts have already limited progress. Only simulate the time after the
+		# actual crossing, so long frames neither launch early nor extend airtime.
+		var remaining := (track_distance - lip) / (track_distance - previous_track_distance)
+		advance_flight(delta * remaining)
+		return
 
 
 func register_contact() -> void:
@@ -153,6 +214,7 @@ func lateral_limit() -> float:
 
 
 func recover() -> void:
+	clear_flight()
 	track_distance = progress.distance
 	lateral_offset = 0.0
 	# Recovery teleports, so it must not sweep through every lane on the way back.
@@ -166,7 +228,10 @@ func recover() -> void:
 
 func update_pose(delta: float) -> void:
 	visual_time += delta
-	transform = circuit.frame(track_distance)
-	position += basis.x * lateral_offset + basis.y * (tuning.hover_height + sin(visual_time * 3.0) * 0.10)
+	transform = circuit.surface_frame(track_distance)
+	var bob := 0.0 if airborne else sin(visual_time * 3.0) * 0.10
+	position += basis.x * lateral_offset + basis.y * (tuning.hover_height + air_height + bob)
+	var pitch := atan2(vertical_velocity, maxf(speed, 1.0)) if airborne else 0.0
+	$Wireframe.rotation.x = lerp_angle($Wireframe.rotation.x, pitch, 1.0 - exp(-delta * 8.0))
 	$Wireframe.rotation.z = lerp_angle($Wireframe.rotation.z, -lateral_velocity * 0.035, 1.0 - exp(-delta * 8.0))
 	$Wireframe.rotation.y = -lateral_velocity * 0.012

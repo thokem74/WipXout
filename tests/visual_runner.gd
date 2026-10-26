@@ -74,17 +74,39 @@ func run() -> void:
 		if bend > tightest_bend:
 			tightest_bend = bend
 			sections["s-bend"] = float(distance)
-	for section: String in sections:
-		for index in range(3):
-			game.racers[index].track_distance = sections[section] + index * 24.0
-			game.racers[index].update_pose(0.1)
-		game.camera.snap_next = true
-		for i in range(10):
-			await process_frame
-		await RenderingServer.frame_post_draw
-		var filename := "/tmp/neon-section-%s-high.png" % section
-		viewport.get_texture().get_image().save_png(filename)
-		print("Saved ", filename, " at ", sections[section])
+	for tunnel: TrackTunnel in game.circuit.get_node("Tunnels").get_children():
+		sections[tunnel.name + "-entrance"] = tunnel.start_distance - 45.0
+		sections[tunnel.name + "-inside"] = tunnel.start_distance + tunnel.tunnel_length * 0.5
+		sections[tunnel.name + "-exit"] = tunnel.start_distance + tunnel.tunnel_length - 20.0
+	var jump_views := {}
+	for jump: TrackJump in game.circuit.jumps:
+		for phase: String in ["approach", "takeoff", "air", "landing"]:
+			var offset: float = {"approach": -35.0, "takeoff": 8.0, "air": 58.0, "landing": 120.0}[phase]
+			var view_name := jump.name + "-" + phase
+			sections[view_name] = jump.takeoff_distance + offset
+			jump_views[view_name] = jump.takeoff_distance
+	for resolution: Vector2i in [Vector2i(1280, 720), Vector2i(1600, 720)]:
+		viewport.size = resolution
+		for section: String in sections:
+			for index in range(3):
+				var racer: Racer = game.racers[index]
+				racer.reset(sections[section] + index * 24.0, [-1.0, -5.0, 5.0][index])
+				racer.speed = 88.0
+				if jump_views.has(section):
+					racer.reset(jump_views[section] - 50.0, [-1.0, -5.0, 5.0][index])
+					racer.speed = 88.0
+					racer.progress.next_checkpoint = floori(racer.track_distance / game.circuit.length * 16) + 1
+					while racer.track_distance < sections[section] + index * 24.0:
+						var steering := clampf(-racer.lateral_offset * 0.2 - racer.lateral_velocity * 0.12, -1, 1)
+						racer.simulate(1.0 / 60.0, Vector3(steering, 1, 0), 1.0)
+				racer.update_pose(0.1)
+			game.camera.snap_next = true
+			for i in range(10):
+				await process_frame
+			await RenderingServer.frame_post_draw
+			var filename := "/tmp/neon-section-%s-high-%d.png" % [section, resolution.x]
+			viewport.get_texture().get_image().save_png(filename)
+			print("Saved ", filename, " at ", sections[section])
 	for screen: String in ["SettingsMenu", "PauseMenu", "ResultsMenu"]:
 		game.ui.show_screen(screen)
 		if screen == "ResultsMenu":

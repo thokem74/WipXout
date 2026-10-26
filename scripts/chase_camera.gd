@@ -11,7 +11,7 @@ func _process(delta: float) -> void:
 	if not is_instance_valid(target):
 		return
 	time += delta
-	var path_frame := target.circuit.frame(target.track_distance)
+	var path_frame := target.circuit.surface_frame(target.track_distance)
 	# Road-relative offsets keep the camera above the surface on hills.
 	var desired := (target.global_position + path_frame.basis.z * tuning.camera_distance
 		+ path_frame.basis.y * tuning.camera_height)

@@ -34,6 +34,7 @@ func run() -> void:
 	check(start.origin.distance_to(end.origin) < 0.1, "Circuit position closes")
 	check(start.basis.z.dot(end.basis.z) > 0.999, "Circuit tangent closes")
 	test_track_layout(game.circuit)
+	test_tunnels(game.circuit)
 	test_camera_clearance(game)
 	game.start_race()
 	game.state = game.State.RACING
@@ -99,18 +100,26 @@ func run() -> void:
 	game.start_race()
 	game.state = game.State.RACING
 	game.demo_mode = true
+	var jump_counts := [0, 0, 0]
+	var previously_airborne := [false, false, false]
 	# Exercise the actual controller, AI and finish/results transition at fixed 60 Hz.
 	for i in range(60 * 600):
 		game._physics_process(1.0 / 60.0)
+		for index in range(3):
+			if game.racers[index].airborne and not previously_airborne[index]:
+				jump_counts[index] += 1
+			previously_airborne[index] = game.racers[index].airborne
 		if i % 6000 == 0:
 			print("TRACE time=", game.elapsed, " distance=", player.track_distance, " progress length=", player.progress.circuit_length, " laps=", player.progress.completed_laps, " speed=", player.speed, " boost=", player.boost_charge)
 		if game.finish_order.size() == 3:
 			break
+	check(jump_counts == [6, 6, 6], "All racers take both jumps on every lap")
 	check(game.finish_order.size() == 3, "All three racers finish")
 	check(game.state == game.State.RESULTS, "Player finish shows results")
 	check(player.progress.completed_laps == 3, "Player completes exactly three laps")
 	check(game.racers[1].progress.completed_laps == 3 and game.racers[2].progress.completed_laps == 3, "Both AI complete three laps")
-	check(player.progress.finish_time > 300 and player.progress.finish_time < 360, "Race length is near requested 5–6 minutes")
+	check(player.progress.finish_time > 300 and player.progress.finish_time < 480,
+		"Revised race duration stays between five and eight minutes")
 	check(player.finished_rank >= 1 and player.finished_rank <= 3, "Finish rank assigned")
 	check(is_finite(player.progress.best_lap), "Best lap recorded")
 	print("Finish times: player=%.3f, ION=%.3f, EMBER=%.3f" % [player.progress.finish_time, game.racers[1].progress.finish_time, game.racers[2].progress.finish_time])
@@ -220,6 +229,11 @@ func test_track_layout(circuit: Circuit) -> void:
 	var frames_valid := true
 	var straight_length := 0.0
 	var longest_straight := 0.0
+	var short_straights := 0
+	var longest_slope := 0.0
+	var slope_length := 0.0
+	var sustained_slopes := 0
+	var maximum_bend := 0.0
 	var previous_turn := 0.0
 	var turn_reversals := 0
 	var previous_slope := 0.0
@@ -240,25 +254,45 @@ func test_track_layout(circuit: Circuit) -> void:
 		if i < samples:
 			positions.append(pose.origin)
 			if absf(grade) > 0.01:
+				slope_length += step
+				longest_slope = maxf(longest_slope, slope_length)
+			else:
+				if slope_length >= 990.0:
+					sustained_slopes += 1
+				slope_length = 0.0
+			if absf(grade) > 0.01:
 				if previous_slope > 0.0 and grade < 0.0:
 					crests += 1
 				elif previous_slope < 0.0 and grade > 0.0:
 					dips += 1
 				previous_slope = grade
 		var bend := circuit.curvature(distance)
+		maximum_bend = maxf(maximum_bend, absf(bend))
 		if absf(bend) < 0.0006:
 			straight_length += step
 			longest_straight = maxf(longest_straight, straight_length)
 		else:
+			if i < samples and straight_length >= 100.0 and straight_length <= 180.0:
+				short_straights += 1
 			straight_length = 0.0
 			if i < samples and previous_turn * bend < 0.0:
 				turn_reversals += 1
 			previous_turn = bend
 	check(frames_valid, "Track frames remain finite and orthonormal over hills")
-	check(longest_straight <= 200.0, "Straight sections stay within 200 metres, including the seam")
+	check(longest_straight <= 180.0, "Straight sections stay within 180 metres, including the seam")
+	check(short_straights >= 1, "Starting grid retains a short 100–180 metre straight")
+	check(circuit.length >= 8451.0 and circuit.length <= 10329.0,
+		"Circuit stays within ten percent of original length")
+	if slope_length >= 990.0:
+		sustained_slopes += 1
+	check(sustained_slopes >= 8 and longest_slope <= 1120.0,
+		"Four sustained climbs and descents around 1,000–1,100 metres")
+	check(maximum_bend >= 1.0 / 110.0 and maximum_bend <= 1.0 / 75.0,
+		"Hardest corners have approximately 75–110 metre radii")
 	check(turn_reversals >= 6, "Track includes at least three alternating S-bend sequences")
-	check(maximum_height - minimum_height >= 40.0, "Track has pronounced elevation changes")
-	check(crests >= 3 and dips >= 2, "Track has three distinct climbs and descents")
+	check(maximum_height - minimum_height >= 125.0 and maximum_height - minimum_height <= 135.0,
+		"Track elevation range is approximately 130 metres")
+	check(crests >= 4 and dips >= 3, "Track has four distinct climbs and descents")
 	check(maximum_grade <= 0.20, "Track grades remain within twenty percent")
 	# Non-neighbouring road samples must leave room for the full track width.
 	var clearance_valid := true
@@ -292,22 +326,68 @@ func test_track_layout(circuit: Circuit) -> void:
 		circuit.length, maximum_height - minimum_height, maximum_grade * 100.0, longest_straight])
 
 
+func test_tunnels(circuit: Circuit) -> void:
+	var tunnels := circuit.get_node("Tunnels").get_children()
+	check(tunnels.size() == 3, "Three authored tunnel sections")
+	for tunnel: TrackTunnel in tunnels:
+		check(tunnel.tunnel_length >= 600.0 and tunnel.tunnel_length <= 800.0,
+			"Tunnel length is between 600 and 800 metres")
+		check(tunnel.start_distance > 0.0 and tunnel.start_distance + tunnel.tunnel_length < circuit.length,
+			"Tunnels leave the grid and lap seam open")
+		var shell: Mesh = tunnel.get_node("Shell").mesh
+		check(shell != null and shell.get_surface_count() == 1, "Tunnel has an opaque continuous shell")
+		for node_name: String in ["Ribs", "Guides"]:
+			check(tunnel.get_node(node_name).mesh.get_surface_count() == 1, "Tunnel neon outlines exist")
+	var climb: TrackTunnel = tunnels[0]
+	check(-circuit.frame(climb.start_distance + climb.tunnel_length / 2.0).basis.z.y > 0.1,
+		"Hill tunnel follows a sustained climb")
+	var bend: TrackTunnel = tunnels[1]
+	check(absf(circuit.curvature(bend.start_distance + bend.tunnel_length / 2.0)) > 0.003,
+		"Bend tunnel follows a sweeping corner")
+	var sprint: TrackTunnel = tunnels[2]
+	var fast_samples := 0
+	var sample_count := 0
+	for distance in range(ceili(sprint.start_distance),
+			floori(sprint.start_distance + sprint.tunnel_length), 5):
+		sample_count += 1
+		if absf(circuit.curvature(distance)) < 0.006:
+			fast_samples += 1
+	check(float(fast_samples) / sample_count > 0.65, "Fast tunnel mostly follows gentler bends")
+
+
+
 func test_camera_clearance(game: Node) -> void:
 	var player: Racer = game.racers[0]
 	var minimum_clearance := INF
-	for speed: float in [player.tuning.top_speed, player.tuning.boost_speed]:
-		game.camera.snap_next = true
-		var steps := ceili((game.circuit.length + 100.0) / (speed / 60.0))
-		for i in range(steps):
-			player.track_distance = i * speed / 60.0
-			player.speed = speed
-			player.update_pose(1.0 / 60.0)
-			game.camera._process(1.0 / 60.0)
-			var offset: float = game.circuit.route.curve.get_closest_offset(game.camera.global_position)
-			var road: Transform3D = game.circuit.frame(offset)
-			var local_camera: Vector3 = road.affine_inverse() * game.camera.global_position
-			minimum_clearance = minf(minimum_clearance, local_camera.y)
-	check(minimum_clearance > 1.0, "Chase camera clears road throughout normal and boosted laps")
+	var tunnel_clearance := true
+	for lane: float in [-10.0, 0.0, 10.0]:
+		player.lateral_offset = lane
+		for speed: float in [player.tuning.top_speed, player.tuning.boost_speed]:
+			game.camera.snap_next = true
+			player.boost_active = speed == player.tuning.boost_speed
+			var steps := ceili((game.circuit.length + 100.0) / (speed / 60.0))
+			for i in range(steps):
+				player.track_distance = i * speed / 60.0
+				player.speed = speed
+				player.update_pose(1.0 / 60.0)
+				game.camera._process(1.0 / 60.0)
+				var offset: float = game.circuit.route.curve.get_closest_offset(game.camera.global_position)
+				var road: Transform3D = game.circuit.frame(offset)
+				var local_camera: Vector3 = road.affine_inverse() * game.camera.global_position
+				minimum_clearance = minf(minimum_clearance, local_camera.y)
+				for tunnel: TrackTunnel in game.circuit.get_node("Tunnels").get_children():
+					if offset < tunnel.start_distance or offset > tunnel.start_distance + tunnel.tunnel_length:
+						continue
+					# Leave a metre of clearance, including under the chamfered shoulders.
+					var ceiling := TrackTunnel.HEIGHT - maxf(0.0, absf(local_camera.x) - 12.0) * 0.8
+					tunnel_clearance = tunnel_clearance and absf(local_camera.x) < TrackTunnel.HALF_WIDTH - 1.0
+					tunnel_clearance = tunnel_clearance and local_camera.y < ceiling - 1.0
+	player.lateral_offset = 0.0
+	player.boost_active = false
+	check(minimum_clearance > 1.0,
+		"Chase camera clears road throughout normal and boosted laps in all lanes")
+	check(tunnel_clearance,
+		"Chase camera clears tunnel walls, shoulders, ceilings, and portals in all lanes")
 	print("Minimum camera clearance: %.2f m" % minimum_clearance)
 
 

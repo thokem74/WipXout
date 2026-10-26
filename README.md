@@ -4,11 +4,13 @@ A single-player anti-gravity arcade racer built with Godot 4.7.2 and GDScript.
 Race two AI pilots through a neon wireframe city over three laps. The project uses
 Godot's **Mobile** renderer on desktop and Android.
 
-The 8.89 km circuit has a 180 m opening straight, repeated flowing S-bends, and
-three smooth climbs and descents with 64 m of elevation change. The steepest
-grade is approximately 11.6%; near-straight sections stay below 200 m, including
-across the lap seam. Ships hover along the road through hills, and the chase
-camera follows its slope. Three laps take roughly 5–6 minutes in automated runs.
+The 9.51 km circuit links short straights, chicanes, flowing S-bends, and tighter
+95 m-radius corners. Near-straight sections stay below 180 m (the longest measures
+approximately 120 m). Four long climbs and descents span 130 m of elevation;
+each sustained slope runs approximately 1,030 m, with a maximum grade of 18.6%.
+Three enclosed neon tunnels are 650, 750, and 700 m long. Two marked ramps launch
+ships above continuous road, with broad landing corridors before the next tight
+corner. Three laps take roughly seven minutes in automated runs.
 
 ## Run
 
@@ -44,6 +46,12 @@ Hold **Boost at the bottom left** with a second finger while driving. The meter
 below it shows available charge. Leaving the Boost button releases it. Braking
 prevents boost activation. Charge recovers after a short cooldown.
 
+The two orange **JUMP** ramps launch automatically above 25 m/s. At normal and
+boost speed, airtime is roughly 1.3–1.5 seconds and peak height is 5–7 m above
+the road. Steering acceleration is halved in flight; throttle, brake, and Boost
+continue working. Slow ships roll over safely. Landings preserve speed, and
+continuous road remains beneath each jump. Pausing freezes the flight arc.
+
 Desktop: **WASD or arrow keys** steer, accelerate, and brake; **Space** boosts;
 **Escape** pauses/resumes. You can also click and drag the pad with the mouse and
 hold Space for boost.
@@ -67,7 +75,24 @@ save key is retained.
   `scenes/game_ui.tscn`; `scripts/driving_pad.gd` moves its visual marker.
 - `resources/city_circuit.tres` is the authored closed Curve3D. Track mesh, grid,
   rails, racer frames, and checkpoints use the same path. Reload the scene after
-  editing the curve to regenerate its geometry.
+  editing the curve to regenerate its geometry. `python3 tools/generate_circuit.py`
+  rebuilds the authored route from its rounded city-block layout and smooth hill
+  profile; this overwrites manual Curve3D edits. Runtime uses the saved resource,
+  with no Python dependency.
+- `scenes/track_tunnel.tscn` contains the reusable opaque shell and neon outline
+  mesh nodes. Its three instances under Circuit → Tunnels expose placement in
+  metres and length. `scripts/track_tunnel.gd` samples the road frames once on
+  scene load, keeping walls and ceilings aligned through bends and slopes.
+  Tunnel interiors are 34 m wide with a 13 m ceiling, chamfered shoulders, and
+  an opaque floor beneath the road; the existing rails remain the driving boundary.
+- `scenes/track_jump.tscn` exposes takeoff distance and launch strength, with
+  editor-visible orange markings and a warning label. Its low approach and return
+  ramp offset the road, grid, and rails through `Circuit.surface_frame()`; the
+  base Curve3D remains the source of race distance. `Racer` adds a ballistic height
+  above that road corridor, with shared gravity and air steering settings in the
+  tuning resource. Jump crossings are committed after racer contacts constrain
+  movement, so a blocked ship cannot launch early. Both AI pilots use the same
+  flight behavior and look ahead across upcoming bends before braking.
 - `scripts/racer.gd` implements spline progress, lateral drift, analytical wall
   boundaries, hover, boost, recovery, and AI. `scripts/race_progress.gd` validates
   forward movement and ordered checkpoints before awarding laps.
@@ -77,7 +102,9 @@ save key is retained.
   impacts separate racers and rebound lateral motion. The Area3D hull is used
   as authored geometry, with engine overlap monitoring disabled; spline movement
   needs its own contact response. Contacts wrap across the lap seam, respect
-  rail bounds using the full hull width, and cannot grant checkpoints. Finished
+  rail bounds using the full hull width, and cannot grant checkpoints. Sweeps also
+  compare road-relative flight height: separated airborne ships can overtake,
+  while overlapping flight paths and landing contacts still resolve. Finished
   ships no longer block racers.
 - `resources/default_tuning.tres` exposes handling, boost, camera, and AI values.
   Mesh strips and emissive shaders provide open wireframe geometry independently
@@ -129,6 +156,7 @@ debug keystore for testing; production signing is outside this prototype.
 godot --headless --path . --editor --import --quit
 godot --headless --path . --script tests/test_runner.gd
 godot --headless --path . --script tests/racer_contacts_runner.gd
+godot --headless --path . --script tests/jumps_runner.gd
 godot --headless --path . --script tests/desktop_input_runner.gd
 godot --headless --audio-driver PulseAudio --path . --script tests/audio_output_runner.gd
 godot --path . --script tests/visual_runner.gd
@@ -137,22 +165,30 @@ godot --path . --script tests/visual_runner.gd
 For isolated test saves on Linux, prefix headless test commands with
 `XDG_DATA_HOME=/tmp/neon-vector-tests`. The visual runner needs a display/GPU and
 writes screenshots to `/tmp/neon-*.png`, including climbs, descents, crests, dips,
-and S-bends in the fixed High/Bloom mode.
+S-bends, every tunnel entrance/interior/exit, and both jumps during approach,
+takeoff, flight, and landing at both aspect ratios in the fixed High/Bloom mode.
 
 Tests cover complete three-lap races and both AI finishes, checkpoint rejection,
 wall recovery, boost, persistence, keyboard input, pad edges and all diagonals,
 proportional input, independent touch release, cancellation, extra fingers,
 mouse interaction, focus loss, and pause/restart resets. Layout checks and rendered
 inspection cover 1280×720 and 1600×720. Track checks cover
-frame continuity, straight length, elevation, grade, alternating bends, section
-clearance, and camera clearance over full normal-speed and boost-speed laps.
-A clean simulated race with ship contact takes **5:38.796**; the AI racers finish in **5:38.715** and
-**5:34.619**. These are gameplay timings, not device performance measurements.
+frame continuity, short straights, sustained slopes, elevation, grade, corner radii,
+section clearance, tunnel placement, and camera clearance in the center and both
+outer lanes over full normal-speed and boost-speed laps.
+On 2026-10-26, the harder circuit passed **616 automated checks**, **28 contact
+checks**, **85 jump checks**, and **seven keyboard checks**, with rendered inspection
+at both aspect ratios using the Mobile renderer. Every racer takes both jumps on
+all three laps. A simulated race takes **6:59.431**; the AI racers finish in
+**6:51.275** and **6:59.333**. These are gameplay timings,
+not device performance measurements.
 
-Verified on 2026-10-25 with Godot 4.7.2: clean headless import, **591 automated
-checks with zero failures**, **23 racer-contact checks**, seven keyboard-input checks, and rendered HUD checks
-at both aspect ratios. The 0.1.1 debug APK was built, installed,
-and launched on a Samsung SM-A176B (Mali-G68, Vulkan Mobile). Tests cover fixed HDR/MSAA/bloom
+The harder-circuit 0.1.1 debug APK was built successfully. The connected phone
+disconnected before installation, so the new jumps and extended tunnels still
+need on-device verification. Earlier testing of the previous circuit on a Samsung
+SM-A176B (Mali-G68, Vulkan Mobile) checked touch acceleration and a tunnel interior;
+its frame measurements do not validate this harder layout. The broader audio/UI validation below was performed
+on 2026-10-25 with Godot 4.7.2. Tests cover fixed HDR/MSAA/bloom
 configuration and compatibility with older saves containing a Low preference.
 Audio checks cover full loop boundaries, the shared VECTOR/ION profile, throttle load,
 crossfades, countdown idle, cue separation, boost fades, bounded pass-by pitch,
@@ -162,13 +198,12 @@ The audio-output runner needs a real audio backend (the command above uses Linux
 PulseAudio). It captures actual mixer samples for player idle/load and nearby
 rivals, and checks combined racer/boost/cue peak headroom. Playback flags alone
 are insufficient to verify audible output.
+Jump checks cover low/normal/boost-speed crossings, repeated laps, long frames,
+midair braking, half-strength steering, blocked takeoffs, pause/resume, recovery,
+restart, finish cleanup, and camera clearance in all lanes through both flight arcs.
 Contact checks cover boosted rear impacts at normal and long frame steps, swept
 side crossings, rails, clear-lane overtakes, recovery, lap seams, lapped racers,
 three-ship overlaps, finish blocking, and restart cleanup.
-Short Android racing samples with the louder recorded-engine mix measured
-43.9–44.9 FPS and a worst observed frame of 35.7 ms. Debug bus peaks reached
--8.6 dB during acceleration, confirming non-silent mixer output; these short
-samples do not establish sustained thermal performance or speaker loudness.
 Android menu/race screenshots and touch navigation were checked with High/Bloom.
 Simultaneous two-finger input is covered by synthetic touch tests; physical comfort
 and the complete device interaction checklist below still need hands-on testing.
@@ -182,5 +217,7 @@ establish sustained thermal performance.
 ## Limitations
 
 One circuit and one ship geometry in three colors; no multiplayer, weapons, or
-full vehicle physics. Best times are local. Physical comfort and sustained Android
-performance require hands-on testing on the intended phone.
+full vehicle physics. Flight stays within the spline corridor, with a ballistic
+road-relative height rather than free-flight rigid-body simulation. Best times
+are local. Physical comfort and sustained Android performance require hands-on
+testing on the intended phone.

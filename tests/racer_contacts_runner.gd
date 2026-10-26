@@ -129,6 +129,43 @@ func run() -> void:
 	rear.reset()
 	check(not rear.contact_hit and rear.contact_cooldown == 0.0,
 		"Restart clears contact feedback and cooldown")
+	# Height participates in the sweep: a clear airborne pass must not be blocked.
+	for delta: float in [0.2, 0.5]:
+		rear.reset(140.0)
+		front.reset(148.0)
+		rear.speed = rear.tuning.boost_speed
+		rear.airborne = true
+		rear.air_height = 6.0
+		rear.prepare_step(delta, Vector3(0, 1, 1))
+		front.prepare_step(delta, Vector3.ZERO)
+		RacerContacts.resolve(pair)
+		check(rear.track_distance > front.track_distance and not rear.contact_hit,
+			"Vertically separated racers can overtake at delta %.2f" % delta)
+	# Ships on the same flight arc still collide longitudinally.
+	rear.reset(140.0)
+	front.reset(148.0)
+	for racer: Racer in pair:
+		racer.airborne = true
+		racer.air_height = 5.0
+	rear.speed = rear.tuning.boost_speed
+	rear.prepare_step(0.2, Vector3(0, 1, 1))
+	front.prepare_step(0.2, Vector3.ZERO)
+	RacerContacts.resolve(pair)
+	check(front.track_distance - rear.track_distance >= shape.size.z and rear.contact_hit,
+		"Overlapping flight paths retain rear collision blocking")
+	# Landing through another hull must separate sideways within the rails.
+	rear.reset(140.0)
+	front.reset(140.0)
+	rear.airborne = true
+	rear.air_height = 3.0
+	rear.vertical_velocity = -8.0
+	rear.prepare_step(0.3, Vector3.ZERO)
+	front.prepare_step(0.3, Vector3.ZERO)
+	RacerContacts.resolve(pair)
+	check(absf(front.lateral_offset - rear.lateral_offset) >= shape.size.x,
+		"Swept landing contact separates racers before hulls overlap")
+	check(absf(rear.lateral_offset) <= rear.lateral_limit()
+		and absf(front.lateral_offset) <= front.lateral_limit(), "Landing separation respects rails")
 	game.queue_free()
 	await process_frame
 	print("RACER CONTACT CHECKS: %d FAILURES: %d" % [checks, failures])

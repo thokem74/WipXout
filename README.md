@@ -10,7 +10,9 @@ approximately 120 m). Four long climbs and descents span 130 m of elevation;
 each sustained slope runs approximately 1,030 m, with a maximum grade of 18.6%.
 Three enclosed neon tunnels are 650, 750, and 700 m long. Two marked ramps launch
 ships above continuous road, with broad landing corridors before the next tight
-corner. Three laps take roughly seven minutes in automated runs.
+corner. Magenta curve arrows face approaching racers, point toward the bend,
+and stay steadily illuminated. Three laps take roughly seven minutes in automated
+runs.
 
 ## Run
 

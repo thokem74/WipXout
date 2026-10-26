@@ -95,10 +95,12 @@ func build_track() -> void:
 		if i % 5 == 0 and absf(curvature(distance)) > 0.0006:
 			var turn := signf(curvature(distance))
 			var marker := here * Vector3(turn * (WIDTH / 2.0 - 0.5), 3.2, 0)
-			var along := -here.basis.z * 2.0
-			var up := Vector3.UP * 1.0
-			NeonLines.add_line(chevrons, marker - along - up, marker + along)
-			NeonLines.add_line(chevrons, marker + along, marker - along + up)
+			# Positive curvature is a left bend: point inward from the outer rail.
+			# The sideways/up plane faces approaching racers, even on a slope.
+			var across := here.basis.x * turn * 2.0
+			var up := here.basis.y * 1.0
+			NeonLines.add_line(chevrons, marker + across - up, marker - across)
+			NeonLines.add_line(chevrons, marker - across, marker + across + up)
 		if i % 18 == 0:
 			for side: float in [-1.0, 1.0]:
 				var top := here * Vector3(side * 12.0, -0.3, 0)
@@ -110,7 +112,6 @@ func build_track() -> void:
 	$Grid.mesh = NeonLines.mesh(grid, 0.045)
 	$Grid.material_override = NeonLines.material(Color(0.12, 0.065, 0.38), 0.25)
 	$Chevrons.mesh = NeonLines.mesh(chevrons, 0.20)
-	$Chevrons.material_override = NeonLines.material(Color(1.0, 0.01, 0.65), 2.0)
 	$Supports.mesh = NeonLines.mesh(supports, 0.09)
 	$Supports.material_override = NeonLines.material(Color(0.025, 0.16, 0.3), 0.4)
 	var arrays := []

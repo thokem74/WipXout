@@ -26,7 +26,7 @@ func run() -> void:
 	game.racers[1].track_distance = 1528.0
 	game.racers[2].track_distance = 1548.0
 	for racer: Racer in game.racers:
-		racer.speed = 88.0
+		racer.speed = racer.tuning.top_speed
 		racer.update_pose(0.1)
 	game.camera.snap_next = true
 	print(
@@ -88,7 +88,7 @@ func run() -> void:
 	var jump_views := {}
 	for jump: TrackJump in game.circuit.jumps:
 		for phase: String in ["approach", "takeoff", "air", "landing"]:
-			var offset: float = {"approach": -35.0, "takeoff": 8.0, "air": 82.0, "landing": 170.0}[phase]
+			var offset: float = {"approach": -35.0, "takeoff": 8.0, "air": 140.0, "landing": 290.0}[phase]
 			var view_name := jump.name + "-" + phase
 			sections[view_name] = jump.takeoff_distance + offset
 			jump_views[view_name] = jump.takeoff_distance
@@ -98,10 +98,10 @@ func run() -> void:
 			for index in range(game.racers.size()):
 				var racer: Racer = game.racers[index]
 				racer.reset(sections[section] + index * 24.0, -5.0 if index % 2 == 0 else 5.0)
-				racer.speed = 88.0
+				racer.speed = racer.tuning.top_speed
 				if jump_views.has(section):
 					racer.reset(jump_views[section] - 50.0, -5.0 if index % 2 == 0 else 5.0)
-					racer.speed = 88.0
+					racer.speed = racer.tuning.top_speed
 					racer.progress.next_checkpoint = (
 							floori(racer.track_distance / game.circuit.length * 16) + 1
 					)
@@ -138,7 +138,7 @@ func run() -> void:
 							1400.0 + index * 900.0 if view == "field" else 1400.0 + index * 14.0
 					)
 					racer.reset(distance, -5.0 if index % 2 == 0 else 5.0)
-					racer.speed = 116.0 if view == "boost" else 88.0
+					racer.speed = racer.tuning.boost_speed if view == "boost" else racer.tuning.top_speed
 					racer.engine_load = 1.0
 					racer.boost_active = view == "boost"
 					racer.update_pose(0.1)

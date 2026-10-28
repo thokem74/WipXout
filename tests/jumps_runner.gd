@@ -38,29 +38,20 @@ func run() -> void:
 	game.set_physics_process(false)
 	game.audio.enabled = false
 	var player: Racer = game.racers[0]
-	check(game.circuit.jumps.size() == 2, "Exactly two authored jumps")
+	check(game.circuit.jumps.size() == 4, "Exactly four authored jumps")
 	for jump: TrackJump in game.circuit.jumps:
 		var clear_landing := true
-		for distance in range(int(jump.takeoff_distance), int(jump.takeoff_distance + 300), 5):
+		for distance in range(int(jump.takeoff_distance), int(jump.takeoff_distance + 520), 5):
 			clear_landing = clear_landing and absf(game.circuit.curvature(distance)) < 0.007
-		for tunnel: TrackTunnel in game.circuit.get_node("Tunnels").get_children():
-			clear_landing = (
-					clear_landing
-					and (
-							jump.takeoff_distance + 300 < tunnel.start_distance
-							or (
-									jump.takeoff_distance - jump.approach_length
-									> tunnel.start_distance + tunnel.tunnel_length
-							)
-					)
-			)
+		for offset in range(-int(jump.approach_length), 521, 5):
+			clear_landing = clear_landing and not game.circuit.is_in_tunnel(jump.takeoff_distance + offset)
 		check(clear_landing, "Jump has an open landing corridor before tight corners and tunnels")
 		check(
 				jump.get_node("Markings").mesh.get_surface_count() == 1,
 				"Ramp has visible takeoff markings"
 		)
 		for lap in range(3):
-			for speed: float in [10.0, 88.0, 116.0]:
+			for speed: float in [10.0, player.tuning.top_speed, player.tuning.boost_speed]:
 				var lip: float = jump.takeoff_distance + lap * game.circuit.length
 				player.reset(lip - 1.0)
 				player.progress.completed_laps = lap
@@ -79,7 +70,7 @@ func run() -> void:
 				)
 				var peak := player.air_height
 				var duration := 0.12
-				while player.airborne and duration < 3.0:
+				while player.airborne and duration < 4.5:
 					# Hold a stable line using the same correction as the game demo.
 					controls.x = clampf(
 							-player.lateral_offset * 0.2 - player.lateral_velocity * 0.12, -1, 1
@@ -92,8 +83,8 @@ func run() -> void:
 						"Flight returns smoothly to road hover height"
 				)
 				check(
-						peak >= 6.5 and peak <= 10.0 and duration >= 1.8 and duration <= 2.4,
-						"Longer racing jumps reach 7–10 metres and around 1.9–2.2 seconds of airtime"
+						peak >= 20.0 and peak <= 29.0 and duration >= 3.0 and duration <= 3.7,
+						"Heavy jumps reach 20–29 metres and 3–3.6 seconds of airtime"
 				)
 				check(
 						not player.wall_hit and player.speed >= speed - 1.0,
@@ -106,7 +97,7 @@ func run() -> void:
 	var jump: TrackJump = game.circuit.jumps[0]
 	for delta: float in [1.0 / 60.0, 0.2, 0.5]:
 		stage(player, jump.takeoff_distance - 0.5)
-		player.speed = 88
+		player.speed = player.tuning.top_speed
 		player.simulate(delta, Vector3(0, 1, 0), delta)
 		check(
 				player.airborne and player.air_height > 0.0, "Swept takeoff handles delta %.3f" % delta
@@ -114,14 +105,14 @@ func run() -> void:
 		var takeoff_height := player.air_height
 		player.simulate(0.1, Vector3(0, -1, 0), delta + 0.1)
 		check(
-				player.speed < 88.0 and player.air_height > takeoff_height,
+				player.speed < player.tuning.top_speed and player.air_height > takeoff_height,
 				"Midair braking works without resetting the height arc"
 		)
 	# A blocked crossing must not launch, even if the proposed movement passed the lip.
 	var front: Racer = game.racers[1]
 	stage(player, jump.takeoff_distance - 10.0)
 	stage(front, jump.takeoff_distance + 1.0)
-	player.speed = 116.0
+	player.speed = 140.0
 	player.prepare_step(0.2, Vector3(0, 1, 1))
 	front.prepare_step(0.2, Vector3.ZERO)
 	RacerContacts.resolve([player, front])
@@ -134,7 +125,7 @@ func run() -> void:
 	game.start_race()
 	game.state = game.State.RACING
 	stage(player, jump.takeoff_distance - 1.0)
-	player.speed = 88.0
+	player.speed = player.tuning.top_speed
 	player.simulate(0.1, Vector3(0, 1, 0), 0.1)
 	game.pause_race()
 	var paused_height := player.air_height
@@ -153,16 +144,16 @@ func run() -> void:
 	player.air_height = 4.0
 	game.start_race()
 	check(not player.airborne and player.air_height == 0.0, "Restart clears airborne state")
-	# Flight steering has half the grounded acceleration at equal speed/curvature.
-	player.reset(100.0)
-	front.reset(100.0)
+	# Flight steering has the configured fraction of grounded acceleration at equal speed/curvature.
+	player.reset(400.0)
+	front.reset(400.0)
 	player.airborne = true
 	player.air_height = 5.0
 	player.prepare_step(0.01, Vector3(1, 0, 0))
 	front.prepare_step(0.01, Vector3(1, 0, 0))
 	check(
-			is_equal_approx(player.lateral_velocity * 2.0, front.lateral_velocity),
-			"Air steering acceleration is reduced to fifty percent"
+			is_equal_approx(player.lateral_velocity / player.tuning.air_steering_factor, front.lateral_velocity),
+			"Air steering acceleration is uses the configured reduced acceleration"
 	)
 	# Finished ships must not retain a floating pose.
 	player.progress.finish_time = 1.0
@@ -172,12 +163,12 @@ func run() -> void:
 	var camera_clear := true
 	for section: TrackJump in game.circuit.jumps:
 		for lane: float in [-10.0, 0.0, 10.0]:
-			for speed: float in [88.0, 116.0]:
+			for speed: float in [player.tuning.top_speed, player.tuning.boost_speed]:
 				stage(player, section.takeoff_distance - 50.0)
 				player.lateral_offset = lane
 				player.speed = speed
 				game.camera.snap_next = true
-				for i in range(210):
+				for i in range(330):
 					var controls := Vector3(
 							clampf(
 									(lane - player.lateral_offset) * 0.3 - player.lateral_velocity * 0.15,
@@ -200,7 +191,7 @@ func run() -> void:
 					)
 	check(
 			camera_clear,
-			"Camera clears both ramps and airborne arcs in all lanes at normal and boost speed"
+			"Camera clears all ramps and airborne arcs in all lanes at normal and boost speed"
 	)
 	game.queue_free()
 	await process_frame

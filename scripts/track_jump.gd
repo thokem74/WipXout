@@ -1,13 +1,13 @@
 @tool
 class_name TrackJump
 extends Node3D
-## The road stays continuous: this low ramp launches ships into a forgiving arc.
+## The road stays continuous: this marked ramp launches ships into a forgiving arcade arc.
 
-@export var takeoff_distance: float = 1250.0
-@export_range(0.1, 0.3) var launch_strength: float = 0.17
+@export var takeoff_distance: float = 300.0
+@export_range(0.1, 0.4) var launch_strength: float = 0.315
 @export var approach_length: float = 45.0
 @export var landing_length: float = 65.0
-@export var ramp_height: float = 1.4
+@export var ramp_height: float = 2.5
 
 
 func surface_height(distance: float) -> float:
@@ -32,6 +32,15 @@ func build(circuit: Circuit) -> void:
 					markings,
 					surface_frame * Vector3(side * 10, 0.12, 3),
 					surface_frame * Vector3(0, 0.12, -2)
+			)
+	# A bright touchdown corridor communicates the safe route beneath the arc.
+	for offset in range(200, 521, 40):
+		var landing_frame := circuit.surface_frame(takeoff_distance + offset)
+		for side: float in [-1.0, 1.0]:
+			NeonLines.add_line(
+					markings,
+					landing_frame * Vector3(side * 11, 0.14, -4),
+					landing_frame * Vector3(side * 11, 0.14, 4)
 			)
 	var lip := circuit.surface_frame(takeoff_distance)
 	NeonLines.add_line(markings, lip * Vector3(-13, 0.12, 0), lip * Vector3(13, 0.12, 0))

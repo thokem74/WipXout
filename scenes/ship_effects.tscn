@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=10 format=3]
 [ext_resource type="Script" path="res://scripts/ship_effects.gd" id="1"]
 [sub_resource type="StandardMaterial3D" id="FlameMaterial"]
 resource_local_to_scene = true
@@ -24,7 +24,7 @@ emission_energy_multiplier = 1.0
 [sub_resource type="QuadMesh" id="ParticleMesh"]
 resource_local_to_scene = true
 material = SubResource("ParticleMaterial")
-size = Vector2(0.09, 0.45)
+size = Vector2(0.12, 0.7)
 [sub_resource type="ParticleProcessMaterial" id="TrailProcess"]
 emission_shape = 1
 emission_sphere_radius = 0.6
@@ -39,6 +39,20 @@ spread = 85.0
 initial_velocity_min = 5.0
 initial_velocity_max = 14.0
 gravity = Vector3(0, -10, 0)
+[sub_resource type="ParticleProcessMaterial" id="LiftProcess"]
+direction = Vector3(0, -1, 0)
+spread = 35.0
+initial_velocity_min = 8.0
+initial_velocity_max = 18.0
+gravity = Vector3(0, -6, 0)
+[sub_resource type="ParticleProcessMaterial" id="LandingProcess"]
+emission_shape = 2
+emission_box_extents = Vector3(2, 0.1, 2)
+direction = Vector3(0, 1, 0)
+spread = 88.0
+initial_velocity_min = 10.0
+initial_velocity_max = 22.0
+gravity = Vector3(0, -18, 0)
 [node name="Effects" type="Node3D"]
 visible = false
 script = ExtResource("1")
@@ -58,8 +72,8 @@ cast_shadow = 0
 [node name="Trail" type="GPUParticles3D" parent="."]
 position = Vector3(0, 0, 2.6)
 emitting = false
-amount = 24
-lifetime = 0.35
+amount = 40
+lifetime = 0.5
 local_coords = false
 visibility_aabb = AABB(-35, -15, -35, 70, 30, 70)
 process_material = SubResource("TrailProcess")
@@ -74,5 +88,29 @@ explosiveness = 1.0
 local_coords = false
 visibility_aabb = AABB(-15, -15, -15, 30, 30, 30)
 process_material = SubResource("BurstProcess")
+draw_pass_1 = SubResource("ParticleMesh")
+cast_shadow = 0
+[node name="LiftBurst" type="GPUParticles3D" parent="."]
+position = Vector3(0, -1, 0)
+emitting = false
+amount = 24
+lifetime = 0.6
+one_shot = true
+explosiveness = 1.0
+local_coords = false
+visibility_aabb = AABB(-25, -25, -25, 50, 50, 50)
+process_material = SubResource("LiftProcess")
+draw_pass_1 = SubResource("ParticleMesh")
+cast_shadow = 0
+[node name="LandingBurst" type="GPUParticles3D" parent="."]
+position = Vector3(0, -1, 0)
+emitting = false
+amount = 24
+lifetime = 0.6
+one_shot = true
+explosiveness = 1.0
+local_coords = false
+visibility_aabb = AABB(-25, -25, -25, 50, 50, 50)
+process_material = SubResource("LandingProcess")
 draw_pass_1 = SubResource("ParticleMesh")
 cast_shadow = 0

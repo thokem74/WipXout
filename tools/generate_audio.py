@@ -157,8 +157,8 @@ def build_sounds():
     wind = bandpass(thruster, 1500, 6500)
     sounds["wind"] = normalize(seamless([
         sample_loop(wind, i * 0.73) for i in range(LOOP_FRAMES)]), 0.4)
-    for name, duration in (("boost_engage", 0.24), ("takeoff", 0.28),
-                           ("landing", 0.3), ("position_gain", 0.32)):
+    for name, duration in (("boost_engage", 0.36), ("takeoff", 0.48),
+                           ("landing", 0.6), ("position_gain", 0.32)):
         result = []
         for i in range(round(duration * RATE)):
             t = i / RATE
@@ -167,7 +167,10 @@ def build_sounds():
             elif name == "takeoff":
                 value = sample_loop(turbine, i * (0.8 + t * 4)) + 0.4 * sample_loop(thruster, i)
             elif name == "landing":
-                value = sample_loop(low, i * 0.65) + 0.5 * sample_loop(metal, i * 0.6)
+                # A short metal attack sits above a deeper, decaying body impact.
+                impact = sample_loop(metal, i * 0.6) * math.exp(-t * 14)
+                body = math.sin(TAU * (68 * t - 22 * t * t)) * math.exp(-t * 7)
+                value = 0.45 * sample_loop(low, i * 0.65) + impact + 0.65 * body
             else:
                 frequency = 660 if t < 0.14 else 880
                 value = 0.6 * math.sin(TAU * frequency * t) + 0.25 * sample_loop(rotary, i * 1.5)

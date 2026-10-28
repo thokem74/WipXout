@@ -93,7 +93,7 @@ func run() -> void:
 			)
 	)
 	# Verify the shared engine bus responds to tunnel entry and exit smoothly.
-	player.track_distance = 500.0
+	player.track_distance = 1000.0
 	game.audio.update_racers(game.racers, true, 0.05)
 	check(
 			game.audio.tunnel_wet > 0.0 and game.audio.tunnel_wet < 0.18,

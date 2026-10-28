@@ -107,6 +107,14 @@ func run() -> void:
 			player.effects.visible and player.effects.get_node("Trail").emitting,
 			"Boost drives reused exhaust and trails"
 	)
+	player.took_off = true
+	player.effects.update_racer(player, 0.01)
+	check(player.effects.get_node("LiftBurst").emitting, "Takeoff uses its own downward burst")
+	player.took_off = false
+	player.landed = true
+	player.effects.update_racer(player, 0.01)
+	check(player.effects.get_node("LandingBurst").emitting, "Landing uses its own heavy impact burst")
+	player.landed = false
 	game.ui.update_effects(player, 0.1, true)
 	var feedback: ShaderMaterial = game.ui.get_node("SafeArea/HUD/SpeedEffects").material
 	check(feedback.get_shader_parameter("boost_amount") == 1.0, "Boost drives edge streaks")
@@ -123,11 +131,16 @@ func run() -> void:
 	game.camera.add_impulse(0.24)
 	game.camera._process(0.05)
 	check(game.camera.impulse > 0 and game.camera.impulse < 0.24, "Camera impulses decay")
+	game.camera.add_impulse(10.0)
+	check(game.camera.impulse == player.tuning.maximum_camera_impulse, "Camera impulse is capped")
 	game.pause_race()
 	check(
 			not player.effects.visible and feedback.get_shader_parameter("boost_amount") == 0.0,
 			"Pause clears particle and HUD effects"
 	)
+	check(not player.effects.get_node("LiftBurst").emitting
+			and not player.effects.get_node("LandingBurst").emitting,
+			"Pause stops all pooled jump emitters")
 	check(not map.is_visible_in_tree(), "Minimap hides with the paused HUD")
 	game._on_action("resume")
 	game._physics_process(0.02)

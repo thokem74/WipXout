@@ -161,9 +161,14 @@ func _update_engine(racers: Array[Racer], index: int, response: float) -> void:
 
 
 func _update_wind(player: Racer, response: float) -> void:
-	var wind_target := (
-			-60.0 if player.speed < 20.0 else -28.0 + minf(player.speed / 116.0, 1.0) * 7.0
-	)
+	var speed_ratio := clampf(player.speed / player.tuning.boost_speed, 0.0, 1.0)
+	var wind_target := -60.0 if player.speed < 20.0 else -26.0 + speed_ratio * 7.0
+	# Tunnel rush and exposed flight have distinct air pressure and pitch.
+	if player.circuit.is_in_tunnel(player.track_distance):
+		wind_target += 3.0
+	elif player.airborne:
+		wind_target += 2.0
+	$Wind.pitch_scale = 0.85 + speed_ratio * 0.4
 	$Wind.volume_db = lerpf($Wind.volume_db, wind_target + _signal_duck_db, response)
 	if player.speed > 20.0 and not $Wind.playing:
 		$Wind.play()
@@ -172,16 +177,7 @@ func _update_wind(player: Racer, response: float) -> void:
 
 
 func _update_tunnel_reverb(player: Racer, response: float) -> void:
-	var inside := false
-	for tunnel: TrackTunnel in player.circuit.get_node("Tunnels").get_children():
-		var distance := fposmod(player.track_distance, player.circuit.length)
-		inside = (
-				inside
-				or (
-						distance >= tunnel.start_distance
-						and distance <= tunnel.start_distance + tunnel.tunnel_length
-				)
-		)
+	var inside := player.circuit.is_in_tunnel(player.track_distance)
 	tunnel_wet = lerpf(tunnel_wet, 0.18 if inside else 0.0, response)
 	var reverb := (
 			AudioServer.get_bus_effect(AudioServer.get_bus_index("RaceEngines"), 0) as AudioEffectReverb

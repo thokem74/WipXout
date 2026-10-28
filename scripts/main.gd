@@ -131,10 +131,10 @@ func update_player_feedback(player: Racer) -> void:
 		ui.flash_impact()
 	if player.took_off:
 		audio.cue("Takeoff")
-		camera.add_impulse(0.10)
+		camera.add_impulse(player.tuning.takeoff_impulse)
 	if player.landed:
 		audio.cue("Landing")
-		camera.add_impulse(0.24)
+		camera.add_impulse(player.tuning.landing_impulse)
 
 
 func complete_race() -> void:

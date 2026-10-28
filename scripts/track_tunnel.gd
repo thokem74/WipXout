@@ -8,7 +8,8 @@ const HEIGHT: float = 13.0
 const STEP: float = 6.0
 
 @export var start_distance: float = 0.0
-@export_range(600.0, 800.0) var tunnel_length: float = 700.0
+@export_range(100.0, 1000.0) var tunnel_length: float = 550.0
+@export var neon_color: Color = Color(0.05, 0.8, 1.0)
 
 
 func build(circuit: Circuit) -> void:
@@ -32,7 +33,7 @@ func build(circuit: Circuit) -> void:
 		var current_frame := circuit.frame(distance)
 		for point: Vector3 in profile:
 			vertices.append(current_frame * point)
-		if sample_index % 4 == 0 or sample_index == sample_count:
+		if sample_index % 3 == 0 or sample_index == sample_count:
 			for edge in range(profile.size() - 1):
 				NeonLines.add_line(
 						ribs, current_frame * profile[edge], current_frame * profile[edge + 1]
@@ -60,5 +61,7 @@ func build(circuit: Circuit) -> void:
 	var shell := ArrayMesh.new()
 	shell.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	$Shell.mesh = shell
+	$Ribs.material_override = NeonLines.material(neon_color, 2.1)
+	$Guides.material_override = NeonLines.material(neon_color.lightened(0.25), 1.7)
 	$Ribs.mesh = NeonLines.mesh(ribs, 0.18)
 	$Guides.mesh = NeonLines.mesh(guides, 0.10)

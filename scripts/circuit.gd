@@ -9,6 +9,7 @@ const SAMPLE_STEP: float = 8.0
 
 var length: float = 0.0
 var jumps: Array[TrackJump] = []
+var tunnels: Array[TrackTunnel] = []
 
 @onready var route: Path3D = $Route
 
@@ -21,6 +22,7 @@ func _ready() -> void:
 	for jump: TrackJump in jumps:
 		jump.build(self)
 	for tunnel: TrackTunnel in $Tunnels.get_children():
+		tunnels.append(tunnel)
 		tunnel.build(self)
 	build_city()
 	build_landmarks()
@@ -36,6 +38,13 @@ func frame(distance: float) -> Transform3D:
 	var right := forward.cross(Vector3.UP).normalized()
 	var up := right.cross(forward).normalized()
 	return Transform3D(Basis(right, up, -forward), position_on_path)
+
+
+func is_in_tunnel(distance: float) -> bool:
+	for tunnel: TrackTunnel in tunnels:
+		if fposmod(distance - tunnel.start_distance, length) <= tunnel.tunnel_length:
+			return true
+	return false
 
 
 func ramp_height(distance: float) -> float:

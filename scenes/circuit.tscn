@@ -40,17 +40,28 @@ cast_shadow = 0
 
 [node name="Tunnels" type="Node3D" parent="."]
 [node name="ClimbTunnel" parent="Tunnels" instance=ExtResource("3")]
-start_distance = 400.0
-tunnel_length = 650.0
-[node name="BendTunnel" parent="Tunnels" instance=ExtResource("3")]
-start_distance = 2850.0
-tunnel_length = 750.0
-[node name="SprintTunnel" parent="Tunnels" instance=ExtResource("3")]
-start_distance = 7700.0
-tunnel_length = 700.0
+start_distance = 900.00
+tunnel_length = 550.0
+neon_color = Color(0.05, 0.8, 1, 1)
+[node name="SwitchbackTunnel" parent="Tunnels" instance=ExtResource("3")]
+start_distance = 2201.24
+tunnel_length = 550.0
+neon_color = Color(1, 0.08, 0.5, 1)
+[node name="DescentTunnel" parent="Tunnels" instance=ExtResource("3")]
+start_distance = 3502.48
+tunnel_length = 550.0
+neon_color = Color(0.45, 0.2, 1, 1)
+[node name="FinalTunnel" parent="Tunnels" instance=ExtResource("3")]
+start_distance = 4803.72
+tunnel_length = 550.0
+neon_color = Color(1, 0.45, 0.04, 1)
 
 [node name="Jumps" type="Node3D" parent="."]
 [node name="SkylineJump" parent="Jumps" instance=ExtResource("4")]
-takeoff_distance = 1250.0
+takeoff_distance = 300.00
 [node name="SummitJump" parent="Jumps" instance=ExtResource("4")]
-takeoff_distance = 6100.0
+takeoff_distance = 1601.24
+[node name="DiveJump" parent="Jumps" instance=ExtResource("4")]
+takeoff_distance = 2902.48
+[node name="FinalJump" parent="Jumps" instance=ExtResource("4")]
+takeoff_distance = 4203.72

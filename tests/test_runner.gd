@@ -141,15 +141,15 @@ func run() -> void:
 			)
 		if game.finish_order.size() == 6:
 			break
-	check(jump_counts == [6, 6, 6, 6, 6, 6], "All racers take both jumps on every lap")
+	check(jump_counts == [12, 12, 12, 12, 12, 12], "All racers take all four jumps on every lap")
 	check(game.finish_order.size() == 6, "All six racers finish")
 	check(game.state == game.State.RESULTS, "Player finish shows results")
 	check(player.progress.completed_laps == 3, "Player completes exactly three laps")
 	for rival: Racer in game.racers.slice(1):
 		check(rival.progress.completed_laps == 3, "Every AI completes three laps")
 	check(
-			player.progress.finish_time > 300 and player.progress.finish_time < 600,
-			"Revised race duration stays within the ten-minute simulation budget"
+			player.progress.finish_time >= 180 and player.progress.finish_time <= 240,
+			"Reference race lasts three to four minutes"
 	)
 	check(player.finished_rank >= 1 and player.finished_rank <= 6, "Finish rank assigned")
 	check(is_finite(player.progress.best_lap), "Best lap recorded")
@@ -311,7 +311,6 @@ func test_track_layout(circuit: Circuit) -> void:
 	var frames_valid := true
 	var straight_length := 0.0
 	var longest_straight := 0.0
-	var short_straights := 0
 	var longest_slope := 0.0
 	var slope_length := 0.0
 	var sustained_slopes := 0
@@ -356,42 +355,41 @@ func test_track_layout(circuit: Circuit) -> void:
 			straight_length += step
 			longest_straight = maxf(longest_straight, straight_length)
 		else:
-			if i < samples and straight_length >= 100.0 and straight_length <= 180.0:
-				short_straights += 1
 			straight_length = 0.0
 			if i < samples and previous_turn * bend < 0.0:
 				turn_reversals += 1
 			previous_turn = bend
 	check(frames_valid, "Track frames remain finite and orthonormal over hills")
-	check(longest_straight <= 180.0, "Straight sections stay within 180 metres, including the seam")
-	check(short_straights >= 1, "Starting grid retains a short 100–180 metre straight")
+	check(longest_straight >= 520.0 and longest_straight <= 750.0, "Long runways support safe jumps without excessive straights")
+	check(turn_reversals >= 4, "Linked corners reverse steering demand")
 	check(
-			circuit.length >= 8451.0 and circuit.length <= 10329.0,
-			"Circuit stays within ten percent of original length"
+			circuit.length >= 5000.0 and circuit.length <= 5400.0,
+			"Compact circuit stays near 5.2 km"
 	)
 	if slope_length >= 380.0:
 		sustained_slopes += 1
+	# A lap boundary can split one of the eight sustained runs into shorter portions.
 	check(
-			sustained_slopes >= 8 and longest_slope <= 430.0,
-			"Four climb/descent pairs fit the one-third graded course"
+			sustained_slopes >= 7 and longest_slope <= 680.0,
+			"Four smooth climb/descent pairs maintain sustained elevation changes"
 	)
 	check(
-			maximum_bend >= 1.0 / 110.0 and maximum_bend <= 1.0 / 75.0,
-			"Hardest corners have approximately 75–110 metre radii"
+			maximum_bend >= 1.0 / 85.0 and maximum_bend <= 1.0 / 60.0,
+			"Hardest corners have approximately 60–85 metre radii"
 	)
 	check(turn_reversals >= 6, "Track includes at least three alternating S-bend sequences")
 	check(
-			maximum_height - minimum_height >= 38.0 and maximum_height - minimum_height <= 43.0,
-			"Track elevation matches the ten-percent graded runs"
+			maximum_height - minimum_height >= 100.0 and maximum_height - minimum_height <= 120.0,
+			"Track has dramatic 100–120 metre elevation changes"
 	)
 	check(crests >= 4 and dips >= 3, "Track has four distinct climbs and descents")
 	check(
-			maximum_grade >= 0.095 and maximum_grade <= 0.11,
-			"Track grades are approximately ten percent"
+			maximum_grade >= 0.25 and maximum_grade <= 0.35,
+			"Sustained hills reach 25–35 percent grades"
 	)
 	check(
-			float(sloped_samples) / samples >= 0.32 and float(sloped_samples) / samples <= 0.35,
-			"One third of the lap is uphill/downhill, leaving two thirds level"
+			float(sloped_samples) / samples >= 0.75,
+			"Most of the lap carries visible elevation changes"
 	)
 	var hard_grade_cuts := 0
 	for index in range(circuit.route.curve.point_count - 1):
@@ -402,8 +400,8 @@ func test_track_layout(circuit: Circuit) -> void:
 		if absf(before - after) > 0.075:
 			hard_grade_cuts += 1
 	check(
-			hard_grade_cuts >= 16,
-			"Each climb and descent directly meets level road without eased slopes"
+			hard_grade_cuts == 0,
+			"Smooth vertical transitions avoid abrupt pitch cuts"
 	)
 	print(
 			(
@@ -458,49 +456,33 @@ func test_track_layout(circuit: Circuit) -> void:
 
 func test_tunnels(circuit: Circuit) -> void:
 	var tunnels := circuit.get_node("Tunnels").get_children()
-	check(tunnels.size() == 3, "Three authored tunnel sections")
+	check(tunnels.size() == 4, "Four authored tunnel sections")
+	var covered := 0.0
+	var colors := []
 	for tunnel: TrackTunnel in tunnels:
-		check(
-				tunnel.tunnel_length >= 600.0 and tunnel.tunnel_length <= 800.0,
-				"Tunnel length is between 600 and 800 metres"
-		)
-		check(
-				(
-						tunnel.start_distance > 0.0
-						and tunnel.start_distance + tunnel.tunnel_length < circuit.length
-				),
-				"Tunnels leave the grid and lap seam open"
-		)
+		covered += tunnel.tunnel_length
+		colors.append(tunnel.neon_color)
+		check(tunnel.tunnel_length >= 500.0, "Tunnels sustain the sense of speed")
+		check(tunnel.start_distance >= 0.0 and tunnel.start_distance < circuit.length,
+				"Tunnel starts on the closed route")
 		var shell: Mesh = tunnel.get_node("Shell").mesh
-		check(
-				shell != null and shell.get_surface_count() == 1,
-				"Tunnel has an opaque continuous shell"
-		)
+		check(shell != null and shell.get_surface_count() == 1, "Opaque continuous tunnel shell")
 		for node_name: String in ["Ribs", "Guides"]:
-			check(
-					tunnel.get_node(node_name).mesh.get_surface_count() == 1,
-					"Tunnel neon outlines exist"
-			)
-	var climb: TrackTunnel = tunnels[0]
-	check(
-			-circuit.frame(climb.start_distance + climb.tunnel_length / 2.0).basis.z.y > 0.09,
-			"Hill tunnel follows a sustained climb"
-	)
-	var bend: TrackTunnel = tunnels[1]
-	check(
-			absf(circuit.curvature(bend.start_distance + bend.tunnel_length / 2.0)) > 0.003,
-			"Bend tunnel follows a sweeping corner"
-	)
-	var sprint: TrackTunnel = tunnels[2]
-	var fast_samples := 0
-	var sample_count := 0
-	for distance in range(
-			ceili(sprint.start_distance), floori(sprint.start_distance + sprint.tunnel_length), 5
-	):
-		sample_count += 1
-		if absf(circuit.curvature(distance)) < 0.006:
-			fast_samples += 1
-	check(float(fast_samples) / sample_count > 0.65, "Fast tunnel mostly follows gentler bends")
+			check(tunnel.get_node(node_name).mesh.get_surface_count() == 1,
+					"Tunnel has neon ribs and guides")
+		var bend := 0.0
+		var grade := 0.0
+		for offset in range(0, int(tunnel.tunnel_length), 8):
+			var distance := tunnel.start_distance + offset
+			bend = maxf(bend, absf(circuit.curvature(distance)))
+			grade = maxf(grade, absf(circuit.frame(distance).basis.z.y))
+		check(bend > 0.01 and grade > 0.2, "Tunnels combine hard bends and steep hills")
+	check(covered / circuit.length >= 0.4 and covered / circuit.length <= 0.45,
+			"Tunnels cover 40–45 percent of the lap")
+	check(colors[0] != colors[1] and colors[1] != colors[2] and colors[2] != colors[3],
+			"Tunnel palettes mark distinct sectors")
+	check(circuit.is_in_tunnel(0.0) and circuit.is_in_tunnel(circuit.length - 1.0),
+			"Final tunnel and audio continue across the lap seam")
 
 
 func test_camera_clearance(game: Node) -> void:
@@ -526,8 +508,8 @@ func test_camera_clearance(game: Node) -> void:
 				minimum_clearance = minf(minimum_clearance, local_camera.y)
 				for tunnel: TrackTunnel in game.circuit.get_node("Tunnels").get_children():
 					if (
-							offset < tunnel.start_distance
-							or offset > tunnel.start_distance + tunnel.tunnel_length
+							fposmod(offset - tunnel.start_distance, game.circuit.length)
+							> tunnel.tunnel_length
 					):
 						continue
 					# Leave a metre of clearance, including under the chamfered shoulders.
@@ -705,3 +687,12 @@ func test_persistence() -> void:
 			not legacy_config.has_section_key("settings", "high_quality"),
 			"Saving settings removes the obsolete quality preference"
 	)
+
+	for course in ["", "city_v1"]:
+		legacy_config.set_value("records", "course", course)
+		legacy_config.save(data.save_path)
+		loaded.load_settings()
+		check(is_inf(loaded.best_race) and is_inf(loaded.best_lap),
+				"Old course records reset: " + course)
+		check(is_equal_approx(loaded.volume, 0.31) and not loaded.camera_shake
+				and is_equal_approx(loaded.sensitivity, 1.35), "Migration preserves settings")

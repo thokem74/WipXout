@@ -19,7 +19,10 @@ func _process(delta: float) -> void:
 			+ path_frame.basis.z * tuning.camera_distance
 			+ path_frame.basis.y * tuning.camera_height
 	)
-	var look_point := target.global_position - path_frame.basis.z * 19.0 + path_frame.basis.y * 0.8
+	# Anticipate the actual road, including linked bends and steep descents.
+	var ahead := target.circuit.surface_frame(target.track_distance + tuning.camera_lookahead)
+	var look_point := ahead.origin + ahead.basis.x * target.lateral_offset
+	look_point += path_frame.basis.y * (tuning.hover_height + target.air_height + 0.8)
 	impulse = move_toward(impulse, 0.0, delta * 1.8)
 	if shake_enabled:
 		desired += path_frame.basis.y * sin(time * 45.0) * impulse
@@ -31,15 +34,15 @@ func _process(delta: float) -> void:
 	else:
 		global_position = global_position.lerp(desired, 1.0 - exp(-delta * tuning.camera_response))
 	look_at(look_point, Vector3.UP)
-	var target_fov := 70.0 + target.speed / tuning.boost_speed * 9.0
+	var target_fov := 70.0 + target.speed / tuning.boost_speed * tuning.camera_speed_fov
 	if target.boost_active:
-		target_fov += 4.0
+		target_fov += tuning.camera_boost_fov
 	fov = lerpf(fov, target_fov, 1.0 - exp(-delta * 3.0))
 
 
 func add_impulse(strength: float) -> void:
 	if shake_enabled:
-		impulse = maxf(impulse, strength)
+		impulse = minf(maxf(impulse, strength), tuning.maximum_camera_impulse)
 
 
 func clear_impulse() -> void:

@@ -13,37 +13,37 @@
 script = ExtResource("9")
 display_name = "VECTOR"
 color = Color(1, 0.015, 0.8, 1)
-cruise_speed = 88.0
+cruise_speed = 90.0
 
 [sub_resource type="Resource" id="Pilot1"]
 script = ExtResource("9")
 display_name = "ION"
 color = Color(0, 0.85, 1, 1)
-cruise_speed = 84.0
+cruise_speed = 88.0
 
 [sub_resource type="Resource" id="Pilot2"]
 script = ExtResource("9")
 display_name = "EMBER"
 color = Color(1, 0.3, 0.06, 1)
-cruise_speed = 86.0
+cruise_speed = 90.0
 
 [sub_resource type="Resource" id="Pilot3"]
 script = ExtResource("9")
 display_name = "VENOM"
 color = Color(0.48, 1, 0.15, 1)
-cruise_speed = 82.0
+cruise_speed = 86.0
 
 [sub_resource type="Resource" id="Pilot4"]
 script = ExtResource("9")
 display_name = "NOVA"
 color = Color(0.55, 0.32, 1, 1)
-cruise_speed = 85.0
+cruise_speed = 89.0
 
 [sub_resource type="Resource" id="Pilot5"]
 script = ExtResource("9")
 display_name = "SOL"
 color = Color(1, 0.83, 0.12, 1)
-cruise_speed = 87.0
+cruise_speed = 90.0
 
 [sub_resource type="Environment" id="Environment"]
 background_mode = 1

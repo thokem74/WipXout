@@ -73,16 +73,16 @@ func ai_input(time: float) -> Vector3:
 	# Look across the braking distance so linked corners cannot hide behind a
 	# gentle section. Air steering is weaker, so AI holds a steady landing lane.
 	var bend := 0.0
-	for sample in range(4):
-		var lookahead := float(sample) * 40.0
+	for sample in range(6):
+		var lookahead := float(sample) * 35.0
 		bend = maxf(bend, absf(circuit.curvature(track_distance + lookahead)))
 	var target_speed: float = profile.cruise_speed
-	target_speed *= clampf(1.0 - bend * (25.0 + min(ai_index, 2) * 5.0), 0.69, 1.0)
+	target_speed *= clampf(1.0 - bend * (12.0 + min(ai_index, 2) * 2.0), 0.82, 1.0)
 	var lane_amplitude := 2.0 if airborne else 5.0
 	var desired_lane := sin(time * (0.22 + ai_index * 0.04) + ai_index * 2.0) * lane_amplitude
 	var steering := clampf((desired_lane - lateral_offset) * 0.25 - lateral_velocity * 0.12, -1, 1)
 	var throttle := clampf((target_speed - speed) * 0.25, -1, 1)
-	var can_boost := bend < 0.0015 and speed > 65 and boost_charge > 0.4
+	var can_boost := bend < 0.002 and speed > 75 and boost_charge > 0.4
 	var boost := 1.0 if can_boost and sin(time * 0.16 + ai_index) > 0.6 else 0.0
 	return Vector3(steering, throttle, boost)
 
@@ -250,7 +250,7 @@ func _update_lateral_movement(delta: float, steering: float) -> void:
 	var steering_force := steering * tuning.steering_acceleration
 	if airborne:
 		steering_force *= tuning.air_steering_factor
-	lateral_velocity += (steering_force + turn * speed * speed * 0.16) * delta
+	lateral_velocity += (steering_force + turn * speed * speed * tuning.corner_drift_factor) * delta
 	lateral_velocity *= exp(-tuning.lateral_damping * delta)
 	lateral_offset += lateral_velocity * delta
 	var limit := lateral_limit()

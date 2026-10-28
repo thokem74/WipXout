@@ -1,6 +1,8 @@
 class_name SaveData
 extends RefCounted
 
+const COURSE_ID: String = "arcade_city_v2"
+
 var volume: float = 0.65
 var camera_shake: bool = true
 var sensitivity: float = 1.0
@@ -16,8 +18,12 @@ func load_settings() -> void:
 	volume = clampf(float(config.get_value("settings", "volume", volume)), 0, 1)
 	camera_shake = bool(config.get_value("settings", "camera_shake", camera_shake))
 	sensitivity = clampf(float(config.get_value("settings", "sensitivity", sensitivity)), 0.5, 2.0)
-	best_race = float(config.get_value("records", "race", INF))
-	best_lap = float(config.get_value("records", "lap", INF))
+	# Old course times cannot be compared with the shorter route.
+	best_race = INF
+	best_lap = INF
+	if str(config.get_value("records", "course", "")) == COURSE_ID:
+		best_race = float(config.get_value("records", "race", INF))
+		best_lap = float(config.get_value("records", "lap", INF))
 
 
 func save_settings() -> Error:
@@ -25,6 +31,7 @@ func save_settings() -> Error:
 	config.set_value("settings", "volume", volume)
 	config.set_value("settings", "camera_shake", camera_shake)
 	config.set_value("settings", "sensitivity", sensitivity)
+	config.set_value("records", "course", COURSE_ID)
 	config.set_value("records", "race", best_race)
 	config.set_value("records", "lap", best_lap)
 	return config.save(save_path)
